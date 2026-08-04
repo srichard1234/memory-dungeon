@@ -16,6 +16,7 @@ const VX = VB_W / 2;
 const VY = VB_H / 2 + 8;
 const OUTER = { x0: 28, y0: 22, x1: VB_W - 28, y1: VB_H - 22 };
 const SCALE = 0.58;
+const BG = "#0f0c18";
 
 function frameAt(depth: number) {
   const s = Math.pow(SCALE, depth);
@@ -27,11 +28,33 @@ function frameAt(depth: number) {
   };
 }
 
-const WALL_FILL = "#3b3550";
-const WALL_STROKE = "#c9b98a";
-const FLOOR_FILL = "#241f30";
-const CEILING_FILL = "#2c2640";
-const DOORWAY_GLOW = "#f3d38a";
+function lerp(a: number, b: number, t: number): number {
+  return a + (b - a) * t;
+}
+
+// Mixes a hex color toward `target` by fraction t, used to darken each
+// surface progressively with depth so distance reads clearly.
+function mixHex(hex: string, target: string, t: number): string {
+  const c1 = parseInt(hex.slice(1), 16);
+  const c2 = parseInt(target.slice(1), 16);
+  const r = Math.round(lerp((c1 >> 16) & 255, (c2 >> 16) & 255, t));
+  const g = Math.round(lerp((c1 >> 8) & 255, (c2 >> 8) & 255, t));
+  const b = Math.round(lerp(c1 & 255, c2 & 255, t));
+  return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+}
+
+function shadeForDepth(hex: string, depth: number): string {
+  return mixHex(hex, BG, Math.min(depth * 0.24, 0.75));
+}
+
+// Distinct hues per surface (cool slate walls, cool-dark ceiling, warm
+// stone floor) so the three surfaces read apart even in dim light —
+// depth shading then darkens each independently as it recedes.
+const WALL_BASE = "#4c5580";
+const CEILING_BASE = "#211d33";
+const FLOOR_BASE = "#3c2e22";
+const EDGE_STROKE = "#e8d9a8";
+const DOORWAY_GLOW = "#ffb347";
 const ITEM_COLOR = "#ffd166";
 const EXIT_COLOR = "#5fd6a8";
 
@@ -51,10 +74,10 @@ export default function DungeonView({ dungeon, x, y, facing, bump }: DungeonView
       <polygon
         key={`ceil-${i}`}
         points={`${near.x0},${near.y0} ${near.x1},${near.y0} ${far.x1},${far.y0} ${far.x0},${far.y0}`}
-        fill={CEILING_FILL}
-        stroke={WALL_STROKE}
+        fill={shadeForDepth(CEILING_BASE, i)}
+        stroke={EDGE_STROKE}
         strokeWidth={1}
-        strokeOpacity={0.35}
+        strokeOpacity={0.4}
       />,
     );
 
@@ -62,10 +85,10 @@ export default function DungeonView({ dungeon, x, y, facing, bump }: DungeonView
       <polygon
         key={`floor-${i}`}
         points={`${near.x0},${near.y1} ${near.x1},${near.y1} ${far.x1},${far.y1} ${far.x0},${far.y1}`}
-        fill={FLOOR_FILL}
-        stroke={WALL_STROKE}
+        fill={shadeForDepth(FLOOR_BASE, i)}
+        stroke={EDGE_STROKE}
         strokeWidth={1}
-        strokeOpacity={0.35}
+        strokeOpacity={0.4}
       />,
     );
 
@@ -79,6 +102,7 @@ export default function DungeonView({ dungeon, x, y, facing, bump }: DungeonView
         far.y0,
         far.y1,
         seg.hasLeftOpening,
+        i,
       ),
     );
     shapes.push(
@@ -91,22 +115,25 @@ export default function DungeonView({ dungeon, x, y, facing, bump }: DungeonView
         far.y0,
         far.y1,
         seg.hasRightOpening,
+        i,
       ),
     );
 
     if (isLast) {
       if (seg.isEnd) {
         shapes.push(
-          <rect
-            key={`endwall-${i}`}
-            x={far.x0}
-            y={far.y0}
-            width={far.x1 - far.x0}
-            height={far.y1 - far.y0}
-            fill={WALL_FILL}
-            stroke={WALL_STROKE}
-            strokeWidth={1.5}
-          />,
+          <g key={`endwall-${i}`}>
+            <rect
+              x={far.x0}
+              y={far.y0}
+              width={far.x1 - far.x0}
+              height={far.y1 - far.y0}
+              fill={shadeForDepth(WALL_BASE, i + 1)}
+              stroke={EDGE_STROKE}
+              strokeWidth={1.5}
+            />
+            {brickCourses(far.x0, far.y0, far.x1, far.y0, far.x0, far.y1, far.x1, far.y1)}
+          </g>,
         );
       } else {
         // View depth ran out while the corridor still continues — fade to
@@ -118,7 +145,7 @@ export default function DungeonView({ dungeon, x, y, facing, bump }: DungeonView
             y={far.y0}
             width={far.x1 - far.x0}
             height={far.y1 - far.y0}
-            fill="#0f0c18"
+            fill={BG}
           />,
         );
       }
@@ -161,10 +188,49 @@ export default function DungeonView({ dungeon, x, y, facing, bump }: DungeonView
       role="img"
       aria-label="First-person view of the dungeon corridor ahead"
     >
-      <rect x={0} y={0} width={VB_W} height={VB_H} fill="#0f0c18" />
+      <defs>
+        <filter id="doorglow" x="-60%" y="-60%" width="220%" height="220%">
+          <feGaussianBlur stdDeviation="3.5" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </defs>
+      <rect x={0} y={0} width={VB_W} height={VB_H} fill={BG} />
       {shapes}
     </svg>
   );
+}
+
+// A few coursing lines suggest stone-block rows so walls read as a
+// distinct textured surface rather than a flat color, at any depth.
+function brickCourses(
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+  bx0: number,
+  by0: number,
+  bx1: number,
+  by1: number,
+): ReactNode {
+  const lines: ReactNode[] = [];
+  for (const t of [0.33, 0.66]) {
+    lines.push(
+      <line
+        key={`course-${t}-${x0}-${y0}`}
+        x1={lerp(x0, bx0, t)}
+        y1={lerp(y0, by0, t)}
+        x2={lerp(x1, bx1, t)}
+        y2={lerp(y1, by1, t)}
+        stroke={BG}
+        strokeWidth={1}
+        strokeOpacity={0.3}
+      />,
+    );
+  }
+  return <>{lines}</>;
 }
 
 function renderSidePanel(
@@ -176,19 +242,36 @@ function renderSidePanel(
   farY0: number,
   farY1: number,
   isOpening: boolean,
+  depth: number,
 ): ReactNode {
   const points = `${nearX},${nearY0} ${farX},${farY0} ${farX},${farY1} ${nearX},${nearY1}`;
   if (!isOpening) {
     return (
-      <polygon key={key} points={points} fill={WALL_FILL} stroke={WALL_STROKE} strokeWidth={1.5} />
+      <g key={key}>
+        <polygon
+          points={points}
+          fill={shadeForDepth(WALL_BASE, depth)}
+          stroke={EDGE_STROKE}
+          strokeWidth={1.5}
+        />
+        {brickCourses(nearX, nearY0, farX, farY0, nearX, nearY1, farX, farY1)}
+      </g>
     );
   }
-  // Doorway: leave it open (dark) with a soft glowing outline so the
-  // passage clearly reads as "you can go this way."
+  // Doorway: leave it open (dark) with a bright glowing frame so the
+  // passage clearly reads as "you can go this way" against the cooler,
+  // textured walls.
   return (
     <g key={key}>
-      <polygon points={points} fill="#191428" />
-      <polygon points={points} fill="none" stroke={DOORWAY_GLOW} strokeWidth={1.2} strokeOpacity={0.6} />
+      <polygon points={points} fill={shadeForDepth("#191428", depth)} />
+      <polygon
+        points={points}
+        fill="none"
+        stroke={DOORWAY_GLOW}
+        strokeWidth={2}
+        strokeOpacity={Math.max(0.35, 0.9 - depth * 0.22)}
+        filter="url(#doorglow)"
+      />
     </g>
   );
 }
