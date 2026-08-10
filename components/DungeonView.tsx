@@ -47,6 +47,14 @@ function shadeForDepth(hex: string, depth: number): string {
   return mixHex(hex, BG, Math.min(depth * 0.24, 0.75));
 }
 
+// Walls stay visibly lit even far away (a brightness floor), while
+// openings are always a true near-black void — that brightness contrast
+// (surface vs. empty space) reads correctly at a glance regardless of
+// depth or color vision, unlike the hue-only distinction used before.
+function wallShade(depth: number): string {
+  return mixHex(WALL_BASE, BG, Math.min(depth * 0.14, 0.35));
+}
+
 // Distinct hues per surface (cool slate walls, cool-dark ceiling, warm
 // stone floor) so the three surfaces read apart even in dim light —
 // depth shading then darkens each independently as it recedes.
@@ -55,6 +63,7 @@ const CEILING_BASE = "#211d33";
 const FLOOR_BASE = "#3c2e22";
 const EDGE_STROKE = "#e8d9a8";
 const DOORWAY_GLOW = "#ffb347";
+const VOID_FILL = "#050308";
 const ITEM_COLOR = "#ffd166";
 const EXIT_COLOR = "#5fd6a8";
 
@@ -128,7 +137,7 @@ export default function DungeonView({ dungeon, x, y, facing, bump }: DungeonView
               y={far.y0}
               width={far.x1 - far.x0}
               height={far.y1 - far.y0}
-              fill={shadeForDepth(WALL_BASE, i + 1)}
+              fill={wallShade(i + 1)}
               stroke={EDGE_STROKE}
               strokeWidth={1.5}
             />
@@ -250,7 +259,7 @@ function renderSidePanel(
       <g key={key}>
         <polygon
           points={points}
-          fill={shadeForDepth(WALL_BASE, depth)}
+          fill={wallShade(depth)}
           stroke={EDGE_STROKE}
           strokeWidth={1.5}
         />
@@ -258,12 +267,12 @@ function renderSidePanel(
       </g>
     );
   }
-  // Doorway: leave it open (dark) with a bright glowing frame so the
-  // passage clearly reads as "you can go this way" against the cooler,
-  // textured walls.
+  // Doorway: a true black void (never brightened, unlike walls) plus
+  // torches bracketing the opening — brightness contrast and a
+  // recognizable "passage" symbol, not just a subtle color/glow difference.
   return (
     <g key={key}>
-      <polygon points={points} fill={shadeForDepth("#191428", depth)} />
+      <polygon points={points} fill={VOID_FILL} />
       <polygon
         points={points}
         fill="none"
@@ -272,6 +281,21 @@ function renderSidePanel(
         strokeOpacity={Math.max(0.35, 0.9 - depth * 0.22)}
         filter="url(#doorglow)"
       />
+      {renderTorch(nearX, nearY0, Math.pow(SCALE, depth))}
+      {renderTorch(farX, farY0, Math.pow(SCALE, depth + 1))}
+    </g>
+  );
+}
+
+// A small glowing lantern marking a doorway corner — a shape-based
+// "passage here" symbol that doesn't rely on spotting a subtle color
+// or brightness difference.
+function renderTorch(x: number, y: number, scale: number): ReactNode {
+  const r = Math.max(2, 3.2 * scale);
+  return (
+    <g key={`torch-${x}-${y}`}>
+      <line x1={x} y1={y} x2={x} y2={y + r * 1.8} stroke="#2a2333" strokeWidth={Math.max(1, 1.4 * scale)} />
+      <circle cx={x} cy={y} r={r} fill={DOORWAY_GLOW} filter="url(#doorglow)" />
     </g>
   );
 }
