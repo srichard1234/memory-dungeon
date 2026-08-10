@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { Dungeon, Direction } from "@/lib/types";
+import type { Dungeon, Direction, Point } from "@/lib/types";
 import { getViewSegments } from "@/lib/maze";
 
 interface DungeonViewProps {
@@ -8,6 +8,7 @@ interface DungeonViewProps {
   y: number;
   facing: Direction;
   bump: boolean;
+  collectedItems: Point[];
 }
 
 const VB_W = 400;
@@ -67,8 +68,8 @@ const VOID_FILL = "#050308";
 const ITEM_COLOR = "#ffd166";
 const EXIT_COLOR = "#5fd6a8";
 
-export default function DungeonView({ dungeon, x, y, facing, bump }: DungeonViewProps) {
-  const segments = getViewSegments(dungeon, x, y, facing, 3);
+export default function DungeonView({ dungeon, x, y, facing, bump, collectedItems }: DungeonViewProps) {
+  const segments = getViewSegments(dungeon, x, y, facing, collectedItems, 3);
   const depthCount = segments.length;
   const shapes: ReactNode[] = [];
 
@@ -281,21 +282,33 @@ function renderSidePanel(
         strokeOpacity={Math.max(0.35, 0.9 - depth * 0.22)}
         filter="url(#doorglow)"
       />
-      {renderTorch(nearX, nearY0, Math.pow(SCALE, depth))}
-      {renderTorch(farX, farY0, Math.pow(SCALE, depth + 1))}
+      {renderTorch(nearX, lerp(nearY0, nearY1, 0.25), Math.pow(SCALE, depth))}
+      {renderTorch(farX, lerp(farY0, farY1, 0.25), Math.pow(SCALE, depth + 1))}
     </g>
   );
 }
 
-// A small glowing lantern marking a doorway corner — a shape-based
-// "passage here" symbol that doesn't rely on spotting a subtle color
-// or brightness difference.
+// A wall-mounted torch marking a doorway: a dark bracket, an amber
+// flame, and a bright hot core — a recognizable flame silhouette rather
+// than a plain dot, so it reads as "a lit torch" at a glance instead of
+// requiring the viewer to notice a subtle glow.
 function renderTorch(x: number, y: number, scale: number): ReactNode {
-  const r = Math.max(2, 3.2 * scale);
+  const r = Math.max(4, 6 * scale);
   return (
     <g key={`torch-${x}-${y}`}>
-      <line x1={x} y1={y} x2={x} y2={y + r * 1.8} stroke="#2a2333" strokeWidth={Math.max(1, 1.4 * scale)} />
-      <circle cx={x} cy={y} r={r} fill={DOORWAY_GLOW} filter="url(#doorglow)" />
+      <circle cx={x} cy={y} r={r * 1.8} fill={DOORWAY_GLOW} opacity={0.28} filter="url(#doorglow)" />
+      <rect
+        x={x - r * 0.32}
+        y={y + r * 0.15}
+        width={r * 0.64}
+        height={r * 1.1}
+        rx={r * 0.15}
+        fill="#2a2333"
+        stroke="#050308"
+        strokeWidth={0.5}
+      />
+      <circle cx={x} cy={y - r * 0.3} r={r * 0.75} fill={DOORWAY_GLOW} filter="url(#doorglow)" />
+      <circle cx={x} cy={y - r * 0.4} r={r * 0.32} fill="#fff2c9" />
     </g>
   );
 }
