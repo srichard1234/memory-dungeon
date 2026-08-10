@@ -36,6 +36,8 @@ export interface Dungeon {
 }
 
 export interface ViewSegment {
+  x: number; // absolute dungeon cell this segment represents
+  y: number;
   hasLeftOpening: boolean;
   hasRightOpening: boolean;
   isEnd: boolean; // forward is blocked at this depth, draw an end wall
