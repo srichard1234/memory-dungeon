@@ -219,7 +219,7 @@ export function getViewSegments(
     const isExit = pointsEqual(dungeon.exit, { x: cx, y: cy });
     const blockedAhead = cell.walls[facing];
 
-    segments.push({ hasLeftOpening, hasRightOpening, isEnd: blockedAhead, hasItem, isExit });
+    segments.push({ x: cx, y: cy, hasLeftOpening, hasRightOpening, isEnd: blockedAhead, hasItem, isExit });
 
     if (blockedAhead) break;
     cx += DELTA[facing].x;

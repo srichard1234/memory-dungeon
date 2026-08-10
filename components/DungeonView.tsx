@@ -33,6 +33,42 @@ function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }
 
+type Pt = [number, number];
+
+function lerpPt(a: Pt, b: Pt, t: number): Pt {
+  return [lerp(a[0], b[0], t), lerp(a[1], b[1], t)];
+}
+
+// Bilinear point inside a quad given by its four corners, u = across, v = down.
+function quadPoint(topLeft: Pt, topRight: Pt, bottomLeft: Pt, bottomRight: Pt, u: number, v: number): Pt {
+  return lerpPt(lerpPt(topLeft, topRight, u), lerpPt(bottomLeft, bottomRight, u), v);
+}
+
+function quadCell(
+  topLeft: Pt,
+  topRight: Pt,
+  bottomLeft: Pt,
+  bottomRight: Pt,
+  u0: number,
+  u1: number,
+  v0: number,
+  v1: number,
+): Pt[] {
+  return [
+    quadPoint(topLeft, topRight, bottomLeft, bottomRight, u0, v0),
+    quadPoint(topLeft, topRight, bottomLeft, bottomRight, u1, v0),
+    quadPoint(topLeft, topRight, bottomLeft, bottomRight, u1, v1),
+    quadPoint(topLeft, topRight, bottomLeft, bottomRight, u0, v1),
+  ];
+}
+
+// Deterministic pseudo-random in [0, 1) so masonry/flagstone texture is
+// stable across re-renders instead of re-randomizing on every move.
+function hash01(seed: number): number {
+  const x = Math.sin(seed) * 43758.5453;
+  return x - Math.floor(x);
+}
+
 // Mixes a hex color toward `target` by fraction t, used to darken each
 // surface progressively with depth so distance reads clearly.
 function mixHex(hex: string, target: string, t: number): string {
@@ -51,22 +87,22 @@ function shadeForDepth(hex: string, depth: number): string {
 // Walls stay visibly lit even far away (a brightness floor), while
 // openings are always a true near-black void — that brightness contrast
 // (surface vs. empty space) reads correctly at a glance regardless of
-// depth or color vision, unlike the hue-only distinction used before.
+// depth or color vision.
 function wallShade(depth: number): string {
   return mixHex(WALL_BASE, BG, Math.min(depth * 0.14, 0.35));
 }
 
-// Distinct hues per surface (cool slate walls, cool-dark ceiling, warm
-// stone floor) so the three surfaces read apart even in dim light —
-// depth shading then darkens each independently as it recedes.
 const WALL_BASE = "#4c5580";
 const CEILING_BASE = "#211d33";
 const FLOOR_BASE = "#3c2e22";
 const EDGE_STROKE = "#e8d9a8";
+const MORTAR = "#181228";
+const IRON = "#22202c";
 const DOORWAY_GLOW = "#ffb347";
 const VOID_FILL = "#050308";
 const ITEM_COLOR = "#ffd166";
 const EXIT_COLOR = "#5fd6a8";
+const FLAME_COLORS = ["#c94f1f", "#ff9d3f", "#ffe2a1"];
 
 export default function DungeonView({ dungeon, x, y, facing, bump, collectedItems }: DungeonViewProps) {
   const segments = getViewSegments(dungeon, x, y, facing, collectedItems, 3);
@@ -92,14 +128,17 @@ export default function DungeonView({ dungeon, x, y, facing, bump, collectedItem
     );
 
     shapes.push(
-      <polygon
-        key={`floor-${i}`}
-        points={`${near.x0},${near.y1} ${near.x1},${near.y1} ${far.x1},${far.y1} ${far.x0},${far.y1}`}
-        fill={shadeForDepth(FLOOR_BASE, i)}
-        stroke={EDGE_STROKE}
-        strokeWidth={1}
-        strokeOpacity={0.4}
-      />,
+      <g key={`floor-${i}`}>
+        {renderFlagstones(
+          [near.x0, near.y1],
+          [near.x1, near.y1],
+          [far.x0, far.y1],
+          [far.x1, far.y1],
+          seg.x,
+          seg.y,
+          i,
+        )}
+      </g>,
     );
 
     shapes.push(
@@ -113,6 +152,9 @@ export default function DungeonView({ dungeon, x, y, facing, bump, collectedItem
         far.y1,
         seg.hasLeftOpening,
         i,
+        seg.x,
+        seg.y,
+        1,
       ),
     );
     shapes.push(
@@ -126,6 +168,9 @@ export default function DungeonView({ dungeon, x, y, facing, bump, collectedItem
         far.y1,
         seg.hasRightOpening,
         i,
+        seg.x,
+        seg.y,
+        2,
       ),
     );
 
@@ -133,16 +178,25 @@ export default function DungeonView({ dungeon, x, y, facing, bump, collectedItem
       if (seg.isEnd) {
         shapes.push(
           <g key={`endwall-${i}`}>
+            {renderMasonry(
+              [far.x0, far.y0],
+              [far.x1, far.y0],
+              [far.x0, far.y1],
+              [far.x1, far.y1],
+              wallShade(i + 1),
+              seg.x,
+              seg.y,
+              3,
+            )}
             <rect
               x={far.x0}
               y={far.y0}
               width={far.x1 - far.x0}
               height={far.y1 - far.y0}
-              fill={wallShade(i + 1)}
+              fill="none"
               stroke={EDGE_STROKE}
               strokeWidth={1.5}
             />
-            {brickCourses(far.x0, far.y0, far.x1, far.y0, far.x0, far.y1, far.x1, far.y1)}
           </g>,
         );
       } else {
@@ -167,25 +221,32 @@ export default function DungeonView({ dungeon, x, y, facing, bump, collectedItem
       const size = Math.max(8, 30 * Math.pow(SCALE, i));
       shapes.push(
         seg.isExit ? (
-          <rect
-            key={`exit-${i}`}
-            x={cx - size / 2}
-            y={cy - size}
-            width={size}
-            height={size * 1.3}
-            rx={size * 0.15}
-            fill="none"
-            stroke={EXIT_COLOR}
-            strokeWidth={2}
-          />
+          <g key={`exit-${i}`}>
+            <rect
+              x={cx - size / 2}
+              y={cy - size}
+              width={size}
+              height={size * 1.3}
+              rx={size * 0.15}
+              fill="none"
+              stroke={EXIT_COLOR}
+              strokeWidth={2}
+              opacity={0.35}
+              filter="url(#doorglow)"
+            />
+            <rect
+              x={cx - size / 2}
+              y={cy - size}
+              width={size}
+              height={size * 1.3}
+              rx={size * 0.15}
+              fill="none"
+              stroke={EXIT_COLOR}
+              strokeWidth={2}
+            />
+          </g>
         ) : (
-          <polygon
-            key={`item-${i}`}
-            points={starPoints(cx, cy, size / 2, size / 4.5, 5)}
-            fill={ITEM_COLOR}
-            stroke="#8a6a1a"
-            strokeWidth={1}
-          />
+          <g key={`item-${i}`}>{renderTreasureChest(cx, cy, size)}</g>
         ),
       );
     }
@@ -213,34 +274,75 @@ export default function DungeonView({ dungeon, x, y, facing, bump, collectedItem
   );
 }
 
-// A few coursing lines suggest stone-block rows so walls read as a
-// distinct textured surface rather than a flat color, at any depth.
-function brickCourses(
-  x0: number,
-  y0: number,
-  x1: number,
-  y1: number,
-  bx0: number,
-  by0: number,
-  bx1: number,
-  by1: number,
+// Individually shaded stone blocks (with mortar gaps) inside an
+// arbitrary quad — used for both side-panel walls and the end wall, so
+// walls read as real masonry rather than a flat fill.
+function renderMasonry(
+  topLeft: Pt,
+  topRight: Pt,
+  bottomLeft: Pt,
+  bottomRight: Pt,
+  baseColor: string,
+  cellX: number,
+  cellY: number,
+  salt: number,
 ): ReactNode {
-  const lines: ReactNode[] = [];
-  for (const t of [0.33, 0.66]) {
-    lines.push(
-      <line
-        key={`course-${t}-${x0}-${y0}`}
-        x1={lerp(x0, bx0, t)}
-        y1={lerp(y0, by0, t)}
-        x2={lerp(x1, bx1, t)}
-        y2={lerp(y1, by1, t)}
-        stroke={BG}
-        strokeWidth={1}
-        strokeOpacity={0.3}
-      />,
-    );
+  const rows = 3;
+  const cols = 3;
+  const blocks: ReactNode[] = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const seed = cellX * 7919 + cellY * 104729 + salt * 92821 + r * 131 + c * 967;
+      const t = hash01(seed);
+      const shade = mixHex(baseColor, t > 0.5 ? "#ffffff" : "#000000", 0.04 + t * 0.08);
+      const pts = quadCell(topLeft, topRight, bottomLeft, bottomRight, c / cols, (c + 1) / cols, r / rows, (r + 1) / rows);
+      blocks.push(
+        <polygon
+          key={`m-${r}-${c}`}
+          points={pts.map((p) => p.join(",")).join(" ")}
+          fill={shade}
+          stroke={MORTAR}
+          strokeWidth={1}
+        />,
+      );
+    }
   }
-  return <>{lines}</>;
+  return <>{blocks}</>;
+}
+
+// Individually shaded flagstone tiles across a floor slice.
+function renderFlagstones(
+  topLeft: Pt,
+  topRight: Pt,
+  bottomLeft: Pt,
+  bottomRight: Pt,
+  cellX: number,
+  cellY: number,
+  depth: number,
+): ReactNode {
+  const rows = 2;
+  const cols = 3;
+  const base = shadeForDepth(FLOOR_BASE, depth);
+  const tiles: ReactNode[] = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const seed = cellX * 60013 + cellY * 7639 + depth * 4241 + r * 271 + c * 883;
+      const t = hash01(seed);
+      const shade = mixHex(base, "#000000", 0.04 + t * 0.1);
+      const pts = quadCell(topLeft, topRight, bottomLeft, bottomRight, c / cols, (c + 1) / cols, r / rows, (r + 1) / rows);
+      tiles.push(
+        <polygon
+          key={`f-${r}-${c}`}
+          points={pts.map((p) => p.join(",")).join(" ")}
+          fill={shade}
+          stroke={MORTAR}
+          strokeWidth={0.75}
+          strokeOpacity={0.7}
+        />,
+      );
+    }
+  }
+  return <>{tiles}</>;
 }
 
 function renderSidePanel(
@@ -253,75 +355,145 @@ function renderSidePanel(
   farY1: number,
   isOpening: boolean,
   depth: number,
+  cellX: number,
+  cellY: number,
+  salt: number,
 ): ReactNode {
-  const points = `${nearX},${nearY0} ${farX},${farY0} ${farX},${farY1} ${nearX},${nearY1}`;
   if (!isOpening) {
     return (
       <g key={key}>
+        {renderMasonry([nearX, nearY0], [farX, farY0], [nearX, nearY1], [farX, farY1], wallShade(depth), cellX, cellY, salt)}
         <polygon
-          points={points}
-          fill={wallShade(depth)}
+          points={`${nearX},${nearY0} ${farX},${farY0} ${farX},${farY1} ${nearX},${nearY1}`}
+          fill="none"
           stroke={EDGE_STROKE}
           strokeWidth={1.5}
         />
-        {brickCourses(nearX, nearY0, farX, farY0, nearX, nearY1, farX, farY1)}
       </g>
     );
   }
-  // Doorway: a true black void (never brightened, unlike walls) plus
-  // torches bracketing the opening — brightness contrast and a
-  // recognizable "passage" symbol, not just a subtle color/glow difference.
+
+  // Doorway: a true black void plus an arched stone frame and a pair of
+  // wall-mounted torches — a recognizable "passage here" symbol rather
+  // than a subtle color/glow difference.
+  const jambTopFrac = 0.28;
+  const jamb: Pt[] = [
+    [nearX, nearY1],
+    [nearX, lerp(nearY0, nearY1, jambTopFrac)],
+    [farX, lerp(farY0, farY1, jambTopFrac)],
+    [farX, farY1],
+  ];
+  const archStart: Pt = [nearX, lerp(nearY0, nearY1, jambTopFrac)];
+  const archEnd: Pt = [farX, lerp(farY0, farY1, jambTopFrac)];
+  const archControl: Pt = [(nearX + farX) / 2, nearY0 - 6];
+  const archPath = `M ${archStart[0]} ${archStart[1]} Q ${archControl[0]} ${archControl[1]} ${archEnd[0]} ${archEnd[1]}`;
+
   return (
     <g key={key}>
-      <polygon points={points} fill={VOID_FILL} />
-      <polygon
-        points={points}
+      <polygon points={jamb.map((p) => p.join(",")).join(" ")} fill={VOID_FILL} />
+      <line
+        x1={nearX}
+        y1={nearY1}
+        x2={nearX}
+        y2={lerp(nearY0, nearY1, jambTopFrac)}
+        stroke={EDGE_STROKE}
+        strokeWidth={3}
+      />
+      <path d={archPath} fill="none" stroke={EDGE_STROKE} strokeWidth={3} />
+      <path
+        d={archPath}
         fill="none"
         stroke={DOORWAY_GLOW}
-        strokeWidth={2}
+        strokeWidth={1.4}
         strokeOpacity={Math.max(0.35, 0.9 - depth * 0.22)}
         filter="url(#doorglow)"
       />
-      {renderTorch(nearX, lerp(nearY0, nearY1, 0.25), Math.pow(SCALE, depth))}
-      {renderTorch(farX, lerp(farY0, farY1, 0.25), Math.pow(SCALE, depth + 1))}
+      {ironTorch(nearX, lerp(nearY0, nearY1, 0.34), Math.pow(SCALE, depth))}
+      {ironTorch(farX, lerp(farY0, farY1, 0.3), Math.pow(SCALE, depth + 1))}
     </g>
   );
 }
 
-// A wall-mounted torch marking a doorway: a dark bracket, an amber
-// flame, and a bright hot core — a recognizable flame silhouette rather
-// than a plain dot, so it reads as "a lit torch" at a glance instead of
-// requiring the viewer to notice a subtle glow.
-function renderTorch(x: number, y: number, scale: number): ReactNode {
-  const r = Math.max(4, 6 * scale);
+// A wall-mounted iron torch: a curled bracket and a layered flame, drawn
+// as an actual flame silhouette rather than a plain glowing dot.
+function ironTorch(x: number, y: number, scale: number): ReactNode {
+  const r = Math.max(5, 7 * scale);
   return (
     <g key={`torch-${x}-${y}`}>
-      <circle cx={x} cy={y} r={r * 1.8} fill={DOORWAY_GLOW} opacity={0.28} filter="url(#doorglow)" />
-      <rect
-        x={x - r * 0.32}
-        y={y + r * 0.15}
-        width={r * 0.64}
-        height={r * 1.1}
-        rx={r * 0.15}
-        fill="#2a2333"
-        stroke="#050308"
-        strokeWidth={0.5}
+      <circle cx={x} cy={y - r * 0.6} r={r * 2.1} fill={DOORWAY_GLOW} opacity={0.22} filter="url(#doorglow)" />
+      <path
+        d={`M ${x} ${y + r * 1.1} q ${r * 0.9} -2 ${r * 0.2} -${r * 1.3}`}
+        fill="none"
+        stroke={IRON}
+        strokeWidth={Math.max(1, r * 0.18)}
       />
-      <circle cx={x} cy={y - r * 0.3} r={r * 0.75} fill={DOORWAY_GLOW} filter="url(#doorglow)" />
-      <circle cx={x} cy={y - r * 0.4} r={r * 0.32} fill="#fff2c9" />
+      <circle cx={x} cy={y + r * 1.15} r={r * 0.22} fill={IRON} />
+      {FLAME_COLORS.map((c, idx) => {
+        const rr = r * (0.85 - idx * 0.28);
+        const topY = y - r * 1.6 + idx * r * 0.5;
+        return (
+          <path
+            key={c}
+            d={`M ${x} ${topY} C ${x - rr} ${y - r * 0.6} ${x - rr * 0.6} ${y + r * 0.3} ${x} ${y + r * 0.5} C ${x + rr * 0.6} ${y + r * 0.3} ${x + rr} ${y - r * 0.6} ${x} ${topY} Z`}
+            fill={c}
+            filter={idx === 0 ? "url(#doorglow)" : undefined}
+          />
+        );
+      })}
     </g>
   );
 }
 
-function starPoints(cx: number, cy: number, outerR: number, innerR: number, spikes: number): string {
-  const points: string[] = [];
-  const step = Math.PI / spikes;
-  let rot = -Math.PI / 2;
-  for (let i = 0; i < spikes; i++) {
-    points.push(`${cx + Math.cos(rot) * outerR},${cy + Math.sin(rot) * outerR}`);
-    rot += step;
-    points.push(`${cx + Math.cos(rot) * innerR},${cy + Math.sin(rot) * innerR}`);
-    rot += step;
-  }
-  return points.join(" ");
+// A small treasure chest — wood body, gold trim and lock, and a domed
+// lid — sitting on the floor, standing in for a plain gold star.
+function renderTreasureChest(cx: number, cy: number, size: number): ReactNode {
+  const w = size;
+  const baseH = size * 0.5;
+  const domeH = size * 0.32;
+  const bottom = cy + size * 0.42;
+  const baseTop = bottom - baseH;
+  const left = cx - w / 2;
+  const right = cx + w / 2;
+  const domePath = `M ${left} ${baseTop} Q ${cx} ${baseTop - domeH * 2} ${right} ${baseTop} Z`;
+  const wood = "#5c3a21";
+  const woodDark = "#3a2415";
+
+  return (
+    <g>
+      <circle cx={cx} cy={cy} r={size * 0.9} fill={ITEM_COLOR} opacity={0.22} filter="url(#doorglow)" />
+      <path d={domePath} fill={wood} stroke={woodDark} strokeWidth={1} />
+      <rect
+        x={left}
+        y={baseTop}
+        width={w}
+        height={baseH}
+        rx={w * 0.06}
+        fill={wood}
+        stroke={woodDark}
+        strokeWidth={1}
+      />
+      <rect x={left} y={baseTop} width={w} height={baseH * 0.16} fill={ITEM_COLOR} opacity={0.9} />
+      <rect x={left} y={baseTop} width={w * 0.14} height={baseH} fill={ITEM_COLOR} stroke="#8a6a1a" strokeWidth={0.6} />
+      <rect
+        x={right - w * 0.14}
+        y={baseTop}
+        width={w * 0.14}
+        height={baseH}
+        fill={ITEM_COLOR}
+        stroke="#8a6a1a"
+        strokeWidth={0.6}
+      />
+      <rect
+        x={cx - w * 0.09}
+        y={baseTop + baseH * 0.26}
+        width={w * 0.18}
+        height={baseH * 0.36}
+        rx={w * 0.03}
+        fill={ITEM_COLOR}
+        stroke="#5c4413"
+        strokeWidth={0.8}
+      />
+      <circle cx={cx} cy={baseTop + baseH * 0.42} r={w * 0.035} fill={woodDark} />
+    </g>
+  );
 }
