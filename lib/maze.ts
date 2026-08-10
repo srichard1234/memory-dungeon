@@ -200,6 +200,7 @@ export function getViewSegments(
   x: number,
   y: number,
   facing: Direction,
+  collectedItems: Point[] = [],
   maxDepth = 3,
 ): ViewSegment[] {
   const segments: ViewSegment[] = [];
@@ -212,7 +213,9 @@ export function getViewSegments(
     const cell = dungeon.cells[cy][cx];
     const hasLeftOpening = !cell.walls[left];
     const hasRightOpening = !cell.walls[right];
-    const hasItem = dungeon.items.some((it) => it.x === cx && it.y === cy);
+    const hasItem =
+      dungeon.items.some((it) => it.x === cx && it.y === cy) &&
+      !collectedItems.some((it) => it.x === cx && it.y === cy);
     const isExit = pointsEqual(dungeon.exit, { x: cx, y: cy });
     const blockedAhead = cell.walls[facing];
 

@@ -203,7 +203,14 @@ export default function Game() {
             onRestart={restart}
           />
           <div className="relative aspect-[4/3] w-full overflow-hidden rounded-lg border border-[#3b3550]">
-            <DungeonView dungeon={dungeon} x={playerPos.x} y={playerPos.y} facing={facing} bump={bump} />
+            <DungeonView
+              dungeon={dungeon}
+              x={playerPos.x}
+              y={playerPos.y}
+              facing={facing}
+              bump={bump}
+              collectedItems={collectedItems}
+            />
             {message && (
               <div className="absolute inset-x-0 bottom-3 mx-auto w-fit rounded-md bg-black/70 px-4 py-2 text-sm font-medium text-[#ffd166]">
                 {message}
