@@ -102,6 +102,8 @@ const DOORWAY_GLOW = "#ffb347";
 const VOID_FILL = "#050308";
 const ITEM_COLOR = "#ffd166";
 const EXIT_COLOR = "#5fd6a8";
+const PORTAL_CORE = "#eafff6";
+const PORTAL_RING_LIGHT = "#bdf5de";
 const FLAME_COLORS = ["#c94f1f", "#ff9d3f", "#ffe2a1"];
 
 export default function DungeonView({ dungeon, x, y, facing, bump, collectedItems }: DungeonViewProps) {
@@ -218,33 +220,11 @@ export default function DungeonView({ dungeon, x, y, facing, bump, collectedItem
     if (seg.hasItem || seg.isExit) {
       const cx = VX;
       const cy = (near.y1 + far.y1) / 2;
+      const corridorMidY = ((near.y0 + near.y1) / 2 + (far.y0 + far.y1) / 2) / 2;
       const size = Math.max(8, 30 * Math.pow(SCALE, i));
       shapes.push(
         seg.isExit ? (
-          <g key={`exit-${i}`}>
-            <rect
-              x={cx - size / 2}
-              y={cy - size}
-              width={size}
-              height={size * 1.3}
-              rx={size * 0.15}
-              fill="none"
-              stroke={EXIT_COLOR}
-              strokeWidth={2}
-              opacity={0.35}
-              filter="url(#doorglow)"
-            />
-            <rect
-              x={cx - size / 2}
-              y={cy - size}
-              width={size}
-              height={size * 1.3}
-              rx={size * 0.15}
-              fill="none"
-              stroke={EXIT_COLOR}
-              strokeWidth={2}
-            />
-          </g>
+          <g key={`exit-${i}`}>{renderGlowingPortal(cx, corridorMidY, size * 2)}</g>
         ) : (
           <g key={`item-${i}`}>{renderTreasureChest(cx, cy, size * 2)}</g>
         ),
@@ -438,6 +418,52 @@ function ironTorch(x: number, y: number, scale: number): ReactNode {
             fill={c}
             filter={idx === 0 ? "url(#doorglow)" : undefined}
           />
+        );
+      })}
+    </g>
+  );
+}
+
+// A glowing portal — nested rings around a bright core with orbiting
+// motes, floating in the middle of the corridor — marks the exit,
+// standing in for a plain outlined rectangle.
+function renderGlowingPortal(cx: number, centerY: number, size: number): ReactNode {
+  const w = size;
+  const rings = [
+    { rx: w, ry: w * 1.3, opacity: 0.25, width: 2 },
+    { rx: w * 0.7, ry: w * 0.94, opacity: 0.55, width: 2.4 },
+    { rx: w * 0.41, ry: w * 0.56, opacity: 0.85, width: 2 },
+  ];
+
+  return (
+    <g>
+      <ellipse cx={cx} cy={centerY} rx={w * 1.35} ry={w * 1.7} fill={EXIT_COLOR} opacity={0.18} filter="url(#doorglow)" />
+      {rings.map((ring, idx) => {
+        const isInnermost = idx === rings.length - 1;
+        return (
+          <ellipse
+            key={`ring-${idx}`}
+            cx={cx}
+            cy={centerY}
+            rx={ring.rx}
+            ry={ring.ry}
+            fill="none"
+            stroke={isInnermost ? PORTAL_RING_LIGHT : EXIT_COLOR}
+            strokeWidth={ring.width}
+            strokeOpacity={ring.opacity}
+            filter={isInnermost ? "url(#doorglow)" : undefined}
+          />
+        );
+      })}
+      <ellipse cx={cx} cy={centerY} rx={w * 0.2} ry={w * 0.26} fill={PORTAL_CORE} />
+      {Array.from({ length: 7 }, (_, idx) => {
+        const angle = (idx / 7) * Math.PI * 2;
+        const moteRadius = w * (1.15 + (idx % 3) * 0.18);
+        const mx = cx + Math.cos(angle) * moteRadius * 0.55;
+        const my = centerY + Math.sin(angle) * moteRadius * 0.75;
+        const r = w * 0.05 + (idx % 2) * w * 0.03;
+        return (
+          <circle key={`mote-${idx}`} cx={mx} cy={my} r={r} fill={PORTAL_RING_LIGHT} opacity={0.8} filter="url(#doorglow)" />
         );
       })}
     </g>
