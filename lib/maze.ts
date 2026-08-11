@@ -4,15 +4,19 @@ import {
   DifficultyConfig,
   Direction,
   Dungeon,
+  Monster,
+  MonsterKind,
   Point,
   ViewSegment,
 } from "./types";
 
 export const DIFFICULTY_CONFIGS: Record<Difficulty, DifficultyConfig> = {
-  small: { size: 6, itemCount: 3, label: "Small" },
-  medium: { size: 9, itemCount: 5, label: "Medium" },
-  large: { size: 13, itemCount: 8, label: "Large" },
+  small: { size: 6, itemCount: 3, label: "Small", monsterCount: 3, simonLength: 3, tilePairs: 3 },
+  medium: { size: 9, itemCount: 5, label: "Medium", monsterCount: 5, simonLength: 4, tilePairs: 4 },
+  large: { size: 13, itemCount: 8, label: "Large", monsterCount: 7, simonLength: 5, tilePairs: 6 },
 };
+
+const MONSTER_KINDS: MonsterKind[] = ["slime", "boo", "toadle", "flutterling", "whisk", "blinky", "emberling"];
 
 const DIRECTIONS: Direction[] = ["N", "E", "S", "W"];
 
@@ -123,7 +127,7 @@ function pointKey(p: Point): string {
 }
 
 export function generateDungeon(difficulty: Difficulty): Dungeon {
-  const { size, itemCount } = DIFFICULTY_CONFIGS[difficulty];
+  const { size, itemCount, monsterCount } = DIFFICULTY_CONFIGS[difficulty];
   const cells = createGrid(size);
 
   const start: Point = { x: randInt(size), y: randInt(size) };
@@ -172,9 +176,32 @@ export function generateDungeon(difficulty: Difficulty): Dungeon {
     selectedDistGrids.push(bfsDistances(size, cells, best));
   }
 
+  // Monsters use the same farthest-point sampling as items, so they end up
+  // spaced apart from the start, exit, items, and each other.
+  const monsters: Monster[] = [];
+  for (let i = 0; i < monsterCount; i++) {
+    let best: Point | null = null;
+    let bestScore = -1;
+    for (const p of allCells) {
+      if (excluded.has(pointKey(p))) continue;
+      let minDist = Infinity;
+      for (const grid of selectedDistGrids) {
+        minDist = Math.min(minDist, grid[p.y][p.x]);
+      }
+      if (minDist > bestScore) {
+        bestScore = minDist;
+        best = p;
+      }
+    }
+    if (!best) break;
+    monsters.push({ x: best.x, y: best.y, kind: MONSTER_KINDS[randInt(MONSTER_KINDS.length)] });
+    excluded.add(pointKey(best));
+    selectedDistGrids.push(bfsDistances(size, cells, best));
+  }
+
   const startFacing: Direction = DIRECTIONS[randInt(4)];
 
-  return { size, cells, start, startFacing, items, exit };
+  return { size, cells, start, startFacing, items, monsters, exit };
 }
 
 export function canMove(dungeon: Dungeon, x: number, y: number, dir: Direction): boolean {
@@ -189,6 +216,17 @@ export function pointsEqual(a: Point, b: Point): boolean {
   return a.x === b.x && a.y === b.y;
 }
 
+export function findActiveMonster(
+  dungeon: Dungeon,
+  x: number,
+  y: number,
+  defeatedMonsters: Point[],
+): Monster | undefined {
+  return dungeon.monsters.find(
+    (m) => m.x === x && m.y === y && !defeatedMonsters.some((d) => pointsEqual(d, m)),
+  );
+}
+
 export { OPPOSITE };
 
 // Walks up to `maxDepth` cells forward from (x, y) facing `facing`,
@@ -201,6 +239,7 @@ export function getViewSegments(
   y: number,
   facing: Direction,
   collectedItems: Point[] = [],
+  defeatedMonsters: Point[] = [],
   maxDepth = 3,
 ): ViewSegment[] {
   const segments: ViewSegment[] = [];
@@ -218,8 +257,20 @@ export function getViewSegments(
       !collectedItems.some((it) => it.x === cx && it.y === cy);
     const isExit = pointsEqual(dungeon.exit, { x: cx, y: cy });
     const blockedAhead = cell.walls[facing];
+    const activeMonster = dungeon.monsters.find(
+      (m) => m.x === cx && m.y === cy && !defeatedMonsters.some((d) => d.x === cx && d.y === cy),
+    );
 
-    segments.push({ x: cx, y: cy, hasLeftOpening, hasRightOpening, isEnd: blockedAhead, hasItem, isExit });
+    segments.push({
+      x: cx,
+      y: cy,
+      hasLeftOpening,
+      hasRightOpening,
+      isEnd: blockedAhead,
+      hasItem,
+      isExit,
+      monster: activeMonster ? activeMonster.kind : null,
+    });
 
     if (blockedAhead) break;
     cx += DELTA[facing].x;
