@@ -2,10 +2,15 @@ export type Direction = "N" | "E" | "S" | "W";
 
 export type Difficulty = "small" | "medium" | "large";
 
+export type MonsterKind = "slime" | "boo" | "toadle" | "flutterling" | "whisk" | "blinky" | "emberling";
+
 export interface DifficultyConfig {
   size: number;
   itemCount: number;
   label: string;
+  monsterCount: number;
+  simonLength: number; // Simon Says sequence length for monster encounters
+  tilePairs: number; // pairs in the exit's memory tile-match puzzle
 }
 
 export interface Walls {
@@ -26,12 +31,17 @@ export interface Point {
   y: number;
 }
 
+export interface Monster extends Point {
+  kind: MonsterKind;
+}
+
 export interface Dungeon {
   size: number;
   cells: Cell[][]; // cells[y][x]
   start: Point;
   startFacing: Direction;
   items: Point[];
+  monsters: Monster[];
   exit: Point;
 }
 
@@ -43,6 +53,7 @@ export interface ViewSegment {
   isEnd: boolean; // forward is blocked at this depth, draw an end wall
   hasItem: boolean;
   isExit: boolean;
+  monster: MonsterKind | null;
 }
 
 export interface BestScores {
