@@ -9,6 +9,7 @@ interface SimonPuzzleProps {
   monsterKind: MonsterKind;
   sequenceLength: number;
   onSolve: () => void;
+  onFail: () => void;
   onClose: () => void;
 }
 
@@ -40,7 +41,7 @@ function randomSequence(length: number): Direction[] {
   return Array.from({ length }, () => DIRECTIONS[Math.floor(Math.random() * DIRECTIONS.length)]);
 }
 
-export default function SimonPuzzle({ monsterKind, sequenceLength, onSolve, onClose }: SimonPuzzleProps) {
+export default function SimonPuzzle({ monsterKind, sequenceLength, onSolve, onFail, onClose }: SimonPuzzleProps) {
   const [sequence] = useState(() => randomSequence(sequenceLength));
   const [phase, setPhase] = useState<Phase>("watch");
   const [highlightIndex, setHighlightIndex] = useState(-1);
@@ -104,11 +105,12 @@ export default function SimonPuzzle({ monsterKind, sequenceLength, onSolve, onCl
       } else {
         audio.playBump();
         setShake(true);
+        onFail();
         after(300, () => setShake(false));
         after(500, playSequence);
       }
     },
-    [phase, sequence, inputProgress, onSolve, clearTimers, after, playSequence],
+    [phase, sequence, inputProgress, onSolve, onFail, clearTimers, after, playSequence],
   );
 
   useEffect(() => {
@@ -201,6 +203,9 @@ export default function SimonPuzzle({ monsterKind, sequenceLength, onSolve, onCl
         >
           Back away for now
         </button>
+        <p className="text-center text-xs font-medium text-[#f2a154]">
+          Getting a step wrong costs 5 steps and replays the sequence.
+        </p>
       </div>
     </div>
   );

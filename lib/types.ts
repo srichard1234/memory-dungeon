@@ -2,6 +2,8 @@ export type Direction = "N" | "E" | "S" | "W";
 
 export type Difficulty = "small" | "medium" | "large";
 
+export type TestDungeonKind = "monster" | "portal";
+
 export type MonsterKind = "slime" | "boo" | "toadle" | "flutterling" | "whisk" | "blinky" | "emberling";
 
 export interface DifficultyConfig {

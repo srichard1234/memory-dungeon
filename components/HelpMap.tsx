@@ -113,6 +113,9 @@ export default function HelpMap({
           Red arrow is you. Gold dots are treasure still out there. Orange triangles are monsters.
           The green square is the exit.
         </p>
+        <p className="max-w-xs text-center text-xs font-medium text-[#f2a154]">
+          Checking the map costs 5 steps.
+        </p>
         <button
           type="button"
           onClick={onClose}

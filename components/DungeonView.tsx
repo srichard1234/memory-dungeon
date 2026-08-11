@@ -235,7 +235,7 @@ export default function DungeonView({
         seg.isExit ? (
           <g key={`exit-${i}`}>{renderGlowingPortal(cx, corridorMidY, size * 2)}</g>
         ) : seg.monster ? (
-          <g key={`monster-${i}`}>{renderMonster(seg.monster, cx, cy, size * 2)}</g>
+          <g key={`monster-${i}`}>{renderMonster(seg.monster, cx, cy, size * 4)}</g>
         ) : (
           <g key={`item-${i}`}>{renderTreasureChest(cx, cy, size * 2)}</g>
         ),

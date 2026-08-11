@@ -7,13 +7,14 @@ import {
   Monster,
   MonsterKind,
   Point,
+  TestDungeonKind,
   ViewSegment,
 } from "./types";
 
 export const DIFFICULTY_CONFIGS: Record<Difficulty, DifficultyConfig> = {
-  small: { size: 6, itemCount: 3, label: "Small", monsterCount: 3, simonLength: 3, tilePairs: 3 },
-  medium: { size: 9, itemCount: 5, label: "Medium", monsterCount: 5, simonLength: 4, tilePairs: 4 },
-  large: { size: 13, itemCount: 8, label: "Large", monsterCount: 7, simonLength: 5, tilePairs: 6 },
+  small: { size: 6, itemCount: 3, label: "Small", monsterCount: 3, simonLength: 4, tilePairs: 4 },
+  medium: { size: 9, itemCount: 5, label: "Medium", monsterCount: 5, simonLength: 6, tilePairs: 6 },
+  large: { size: 13, itemCount: 8, label: "Large", monsterCount: 7, simonLength: 8, tilePairs: 8 },
 };
 
 const MONSTER_KINDS: MonsterKind[] = ["slime", "boo", "toadle", "flutterling", "whisk", "blinky", "emberling"];
@@ -202,6 +203,46 @@ export function generateDungeon(difficulty: Difficulty): Dungeon {
   const startFacing: Direction = DIRECTIONS[randInt(4)];
 
   return { size, cells, start, startFacing, items, monsters, exit };
+}
+
+// A minimal two-room dungeon for quickly testing a single monster or exit
+// portal interaction, without generating and exploring a full maze: a start
+// room with a straight-on view into a second room holding just the thing
+// under test.
+export function generateTestDungeon(kind: TestDungeonKind): Dungeon {
+  const size = 2;
+  const cells = createGrid(size);
+  cells[0][0].walls.E = false;
+  cells[0][1].walls.W = false;
+
+  const start: Point = { x: 0, y: 0 };
+  const target: Point = { x: 1, y: 0 };
+  const startFacing: Direction = "E";
+  // A cell the carved corridor never opens into, used as a harmless
+  // placeholder exit when this dungeon isn't testing the portal itself.
+  const unreachable: Point = { x: 1, y: 1 };
+
+  if (kind === "monster") {
+    return {
+      size,
+      cells,
+      start,
+      startFacing,
+      items: [],
+      monsters: [{ x: target.x, y: target.y, kind: MONSTER_KINDS[randInt(MONSTER_KINDS.length)] }],
+      exit: unreachable,
+    };
+  }
+
+  return {
+    size,
+    cells,
+    start,
+    startFacing,
+    items: [],
+    monsters: [],
+    exit: target,
+  };
 }
 
 export function canMove(dungeon: Dungeon, x: number, y: number, dir: Direction): boolean {
