@@ -13,7 +13,7 @@ interface SimonPuzzleProps {
   onClose: () => void;
 }
 
-type Phase = "watch" | "input" | "success";
+type Phase = "intro" | "watch" | "input" | "success";
 
 const DIRECTIONS: Direction[] = ["N", "E", "S", "W"];
 const ARROW_GLYPH: Record<Direction, string> = { N: "▲", E: "▶", S: "▼", W: "◀" };
@@ -43,7 +43,7 @@ function randomSequence(length: number): Direction[] {
 
 export default function SimonPuzzle({ monsterKind, sequenceLength, onSolve, onFail, onClose }: SimonPuzzleProps) {
   const [sequence] = useState(() => randomSequence(sequenceLength));
-  const [phase, setPhase] = useState<Phase>("watch");
+  const [phase, setPhase] = useState<Phase>("intro");
   const [highlightIndex, setHighlightIndex] = useState(-1);
   const [inputProgress, setInputProgress] = useState(0);
   const [pressedDir, setPressedDir] = useState<Direction | null>(null);
@@ -75,15 +75,7 @@ export default function SimonPuzzle({ monsterKind, sequenceLength, onSolve, onFa
     after(500 + sequence.length * stepMs, () => setPhase("input"));
   }, [sequence, clearTimers, after]);
 
-  useEffect(() => {
-    // Kicks off the watch-then-input timer sequence as soon as the puzzle
-    // mounts; sequence/playSequence/clearTimers are stable for the
-    // puzzle's lifetime.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    playSequence();
-    return clearTimers;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  useEffect(() => clearTimers, [clearTimers]);
 
   const handleInput = useCallback(
     (dir: Direction) => {
@@ -120,6 +112,13 @@ export default function SimonPuzzle({ monsterKind, sequenceLength, onSolve, onFa
         onClose();
         return;
       }
+      if (phase === "intro") {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          playSequence();
+        }
+        return;
+      }
       const dir = KEY_TO_DIR[e.key];
       if (dir) {
         e.preventDefault();
@@ -128,10 +127,9 @@ export default function SimonPuzzle({ monsterKind, sequenceLength, onSolve, onFa
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [handleInput, onClose]);
+  }, [phase, handleInput, onClose, playSequence]);
 
-  const statusText =
-    phase === "watch" ? "Watch the sequence..." : phase === "input" ? "Now repeat it back" : "You got it!";
+  const statusText = phase === "watch" ? "Watch the sequence..." : phase === "input" ? "Now repeat it back" : "You got it!";
 
   return (
     <div
@@ -149,52 +147,71 @@ export default function SimonPuzzle({ monsterKind, sequenceLength, onSolve, onFa
         <h2 className="text-center text-lg font-semibold">
           {withIndefiniteArticle(MONSTER_NAMES[monsterKind])} blocks the way!
         </h2>
-        <p className="text-sm text-[#b7aed0]">{statusText}</p>
 
-        <div className="flex gap-2" aria-hidden="true">
-          {sequence.map((_, i) => (
-            <span
-              key={i}
-              className={`h-2 w-2 rounded-full ${i < inputProgress || phase === "success" ? "bg-[#5fd6a8]" : "bg-[#3b3550]"}`}
-            />
-          ))}
-        </div>
+        {phase === "intro" ? (
+          <>
+            <p className="max-w-xs text-center text-sm text-[#b7aed0]">
+              Watch the sequence of arrows, then repeat it back. Getting a step wrong costs 5 steps
+              and replays the sequence.
+            </p>
+            <button
+              type="button"
+              onClick={playSequence}
+              className="rounded-md bg-[#ffd166] px-5 py-2 text-sm font-semibold text-[#1d1830] hover:bg-[#ffdd85] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#ffd166]"
+            >
+              Begin
+            </button>
+          </>
+        ) : (
+          <>
+            <p className="text-sm text-[#b7aed0]">{statusText}</p>
 
-        <div className="grid grid-cols-3 grid-rows-3 place-items-center gap-2">
-          <div />
-          <PuzzleButton
-            dir="N"
-            active={highlightIndex >= 0 && sequence[highlightIndex] === "N"}
-            pressed={pressedDir === "N"}
-            disabled={phase !== "input"}
-            onPress={handleInput}
-          />
-          <div />
-          <PuzzleButton
-            dir="W"
-            active={highlightIndex >= 0 && sequence[highlightIndex] === "W"}
-            pressed={pressedDir === "W"}
-            disabled={phase !== "input"}
-            onPress={handleInput}
-          />
-          <div />
-          <PuzzleButton
-            dir="E"
-            active={highlightIndex >= 0 && sequence[highlightIndex] === "E"}
-            pressed={pressedDir === "E"}
-            disabled={phase !== "input"}
-            onPress={handleInput}
-          />
-          <div />
-          <PuzzleButton
-            dir="S"
-            active={highlightIndex >= 0 && sequence[highlightIndex] === "S"}
-            pressed={pressedDir === "S"}
-            disabled={phase !== "input"}
-            onPress={handleInput}
-          />
-          <div />
-        </div>
+            <div className="flex gap-2" aria-hidden="true">
+              {sequence.map((_, i) => (
+                <span
+                  key={i}
+                  className={`h-2 w-2 rounded-full ${i < inputProgress || phase === "success" ? "bg-[#5fd6a8]" : "bg-[#3b3550]"}`}
+                />
+              ))}
+            </div>
+
+            <div className="grid grid-cols-3 grid-rows-3 place-items-center gap-2">
+              <div />
+              <PuzzleButton
+                dir="N"
+                active={highlightIndex >= 0 && sequence[highlightIndex] === "N"}
+                pressed={pressedDir === "N"}
+                disabled={phase !== "input"}
+                onPress={handleInput}
+              />
+              <div />
+              <PuzzleButton
+                dir="W"
+                active={highlightIndex >= 0 && sequence[highlightIndex] === "W"}
+                pressed={pressedDir === "W"}
+                disabled={phase !== "input"}
+                onPress={handleInput}
+              />
+              <div />
+              <PuzzleButton
+                dir="E"
+                active={highlightIndex >= 0 && sequence[highlightIndex] === "E"}
+                pressed={pressedDir === "E"}
+                disabled={phase !== "input"}
+                onPress={handleInput}
+              />
+              <div />
+              <PuzzleButton
+                dir="S"
+                active={highlightIndex >= 0 && sequence[highlightIndex] === "S"}
+                pressed={pressedDir === "S"}
+                disabled={phase !== "input"}
+                onPress={handleInput}
+              />
+              <div />
+            </div>
+          </>
+        )}
 
         <button
           type="button"
@@ -203,9 +220,6 @@ export default function SimonPuzzle({ monsterKind, sequenceLength, onSolve, onFa
         >
           Back away for now
         </button>
-        <p className="text-center text-xs font-medium text-[#f2a154]">
-          Getting a step wrong costs 5 steps and replays the sequence.
-        </p>
       </div>
     </div>
   );
