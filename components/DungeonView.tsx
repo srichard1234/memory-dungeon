@@ -246,7 +246,7 @@ export default function DungeonView({ dungeon, x, y, facing, bump, collectedItem
             />
           </g>
         ) : (
-          <g key={`item-${i}`}>{renderTreasureChest(cx, cy, size)}</g>
+          <g key={`item-${i}`}>{renderTreasureChest(cx, cy, size * 2)}</g>
         ),
       );
     }
