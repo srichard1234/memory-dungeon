@@ -5,6 +5,8 @@ interface StatusBarProps {
   steps: number;
   itemsCollected: number;
   itemsTotal: number;
+  monstersDefeated: number;
+  monstersTotal: number;
   facing: Direction;
   muted: boolean;
   helpActive: boolean;
@@ -17,6 +19,8 @@ export default function StatusBar({
   steps,
   itemsCollected,
   itemsTotal,
+  monstersDefeated,
+  monstersTotal,
   facing,
   muted,
   helpActive,
@@ -34,6 +38,12 @@ export default function StatusBar({
           Treasure:{" "}
           <span className="text-[#ffd166]">
             {itemsCollected} / {itemsTotal}
+          </span>
+        </span>
+        <span className="font-medium">
+          Monsters:{" "}
+          <span className="text-[#f2a154]">
+            {monstersDefeated} / {monstersTotal}
           </span>
         </span>
         <span className="font-medium">
