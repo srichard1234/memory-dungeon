@@ -134,10 +134,16 @@ export default function Game() {
       }
 
       if (pointsEqual(next, dungeon.exit)) {
-        if (nextCollected.length === dungeon.items.length) {
+        const allItemsCollected = nextCollected.length === dungeon.items.length;
+        const allMonstersDefeated = defeatedMonsters.length === dungeon.monsters.length;
+        if (allItemsCollected && allMonstersDefeated) {
           setExitPuzzleOpen(true);
-        } else {
+        } else if (!allItemsCollected && !allMonstersDefeated) {
+          showMessage("Collect all the treasure and defeat every monster first!");
+        } else if (!allItemsCollected) {
           showMessage("Find all the treasure first!");
+        } else {
+          showMessage("Defeat every monster first!");
         }
       }
     },
@@ -170,11 +176,11 @@ export default function Game() {
   }, [phase, helpOpen, activeMonster, exitPuzzleOpen]);
 
   const handleMonsterSolved = useCallback(() => {
-    setActiveMonster((current) => {
-      if (current) setDefeatedMonsters((prev) => [...prev, { x: current.x, y: current.y }]);
-      return null;
-    });
-  }, []);
+    if (!activeMonster) return;
+    const defeated = { x: activeMonster.x, y: activeMonster.y };
+    setDefeatedMonsters((prev) => (prev.some((m) => pointsEqual(m, defeated)) ? prev : [...prev, defeated]));
+    setActiveMonster(null);
+  }, [activeMonster]);
 
   const handleMonsterPuzzleClose = useCallback(() => setActiveMonster(null), []);
 
@@ -242,6 +248,8 @@ export default function Game() {
             steps={steps}
             itemsCollected={collectedItems.length}
             itemsTotal={dungeon.items.length}
+            monstersDefeated={defeatedMonsters.length}
+            monstersTotal={dungeon.monsters.length}
             facing={facing}
             muted={muted}
             helpActive={helpOpen}
