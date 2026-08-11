@@ -1,13 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { BestScores, Difficulty, Direction, Dungeon, Monster, Point } from "@/lib/types";
+import type { BestScores, Difficulty, Direction, Dungeon, Monster, Point, TestDungeonKind } from "@/lib/types";
 import {
   DIFFICULTY_CONFIGS,
   OPPOSITE,
   canMove,
   findActiveMonster,
   generateDungeon,
+  generateTestDungeon,
   leftOf,
   move,
   pointsEqual,
@@ -86,6 +87,33 @@ export default function Game() {
     setIsNewBest(false);
     setHelpOpen(false);
     setPhase("playing");
+  }, []);
+
+  // Dev/test helper: a fixed two-room dungeon for exercising just a monster
+  // encounter or just the exit portal, reachable via the "Test:" buttons on
+  // the start screen (dev builds only) or a `?test=monster` / `?test=portal`
+  // URL query param.
+  const startTestGame = useCallback((kind: TestDungeonKind) => {
+    const newDungeon = generateTestDungeon(kind);
+    setDifficulty("small");
+    setDungeon(newDungeon);
+    setPlayerPos(newDungeon.start);
+    setFacing(newDungeon.startFacing);
+    setCollectedItems([]);
+    setDefeatedMonsters([]);
+    setActiveMonster(null);
+    setExitPuzzleOpen(false);
+    setSteps(0);
+    setMessage(null);
+    setIsNewBest(false);
+    setHelpOpen(false);
+    setPhase("playing");
+  }, []);
+
+  useEffect(() => {
+    const test = new URLSearchParams(window.location.search).get("test");
+    if (test === "monster" || test === "portal") startTestGame(test);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleWin = useCallback(
@@ -184,12 +212,16 @@ export default function Game() {
 
   const handleMonsterPuzzleClose = useCallback(() => setActiveMonster(null), []);
 
+  const handleMonsterPuzzleFail = useCallback(() => setSteps((s) => s + 5), []);
+
   const handleExitPuzzleSolved = useCallback(() => {
     setExitPuzzleOpen(false);
     handleWin(steps);
   }, [handleWin, steps]);
 
   const handleExitPuzzleClose = useCallback(() => setExitPuzzleOpen(false), []);
+
+  const handleExitPuzzleMismatch = useCallback(() => setSteps((s) => s + 1), []);
 
   const toggleMute = useCallback(() => {
     setMuted((m) => {
@@ -203,6 +235,11 @@ export default function Game() {
     if (!difficulty) return;
     startGame(difficulty);
   }, [difficulty, startGame]);
+
+  const toggleHelp = useCallback(() => {
+    if (!helpOpen) setSteps((s) => s + 5);
+    setHelpOpen((v) => !v);
+  }, [helpOpen]);
 
   useEffect(() => {
     if (phase !== "playing") return;
@@ -240,7 +277,13 @@ export default function Game() {
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 p-4">
-      {phase === "start" && <StartScreen bestScores={bestScores} onStart={startGame} />}
+      {phase === "start" && (
+        <StartScreen
+          bestScores={bestScores}
+          onStart={startGame}
+          onStartTest={process.env.NODE_ENV === "development" ? startTestGame : undefined}
+        />
+      )}
 
       {phase === "playing" && dungeon && (
         <>
@@ -254,7 +297,7 @@ export default function Game() {
             muted={muted}
             helpActive={helpOpen}
             onToggleMute={toggleMute}
-            onToggleHelp={() => setHelpOpen((v) => !v)}
+            onToggleHelp={toggleHelp}
             onRestart={restart}
           />
           <div className="relative aspect-[4/3] w-full overflow-hidden rounded-lg border border-[#3b3550]">
@@ -298,6 +341,7 @@ export default function Game() {
               monsterKind={activeMonster.kind}
               sequenceLength={DIFFICULTY_CONFIGS[difficulty].simonLength}
               onSolve={handleMonsterSolved}
+              onFail={handleMonsterPuzzleFail}
               onClose={handleMonsterPuzzleClose}
             />
           )}
@@ -305,6 +349,7 @@ export default function Game() {
             <TileMatchPuzzle
               pairs={DIFFICULTY_CONFIGS[difficulty].tilePairs}
               onSolve={handleExitPuzzleSolved}
+              onMismatch={handleExitPuzzleMismatch}
               onClose={handleExitPuzzleClose}
             />
           )}

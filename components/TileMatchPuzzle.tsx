@@ -8,6 +8,7 @@ import { renderMonster } from "./DungeonView";
 interface TileMatchPuzzleProps {
   pairs: number;
   onSolve: () => void;
+  onMismatch: () => void;
   onClose: () => void;
 }
 
@@ -36,7 +37,7 @@ function columnsFor(totalTiles: number): number {
   return totalTiles <= 6 ? 3 : 4;
 }
 
-export default function TileMatchPuzzle({ pairs, onSolve, onClose }: TileMatchPuzzleProps) {
+export default function TileMatchPuzzle({ pairs, onSolve, onMismatch, onClose }: TileMatchPuzzleProps) {
   const [tiles] = useState(() => buildTiles(pairs));
   const [flipped, setFlipped] = useState<number[]>([]);
   const [matchedIds, setMatchedIds] = useState<Set<number>>(new Set());
@@ -71,6 +72,7 @@ export default function TileMatchPuzzle({ pairs, onSolve, onClose }: TileMatchPu
           });
         } else {
           setLocked(true);
+          onMismatch();
           after(750, () => {
             audio.playBump();
             setFlipped([]);
@@ -79,7 +81,7 @@ export default function TileMatchPuzzle({ pairs, onSolve, onClose }: TileMatchPu
         }
       }
     },
-    [locked, flipped, matchedIds, tiles, after],
+    [locked, flipped, matchedIds, tiles, after, onMismatch],
   );
 
   useEffect(() => {
@@ -167,6 +169,9 @@ export default function TileMatchPuzzle({ pairs, onSolve, onClose }: TileMatchPu
         >
           Step away for now
         </button>
+        <p className="text-center text-xs font-medium text-[#f2a154]">
+          A mismatched pair costs 1 step.
+        </p>
       </div>
     </div>
   );
