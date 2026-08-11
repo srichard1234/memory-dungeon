@@ -6,6 +6,7 @@ interface HelpMapProps {
   playerY: number;
   facing: Direction;
   collectedItems: Point[];
+  defeatedMonsters: Point[];
   onClose: () => void;
 }
 
@@ -13,11 +14,21 @@ const CELL = 26;
 
 const FACING_ROTATION: Record<Direction, number> = { N: 0, E: 90, S: 180, W: 270 };
 
-export default function HelpMap({ dungeon, playerX, playerY, facing, collectedItems, onClose }: HelpMapProps) {
+export default function HelpMap({
+  dungeon,
+  playerX,
+  playerY,
+  facing,
+  collectedItems,
+  defeatedMonsters,
+  onClose,
+}: HelpMapProps) {
   const size = dungeon.size;
   const dim = size * CELL;
   const collectedKeys = new Set(collectedItems.map((p) => `${p.x},${p.y}`));
   const remainingItems = dungeon.items.filter((p) => !collectedKeys.has(`${p.x},${p.y}`));
+  const defeatedKeys = new Set(defeatedMonsters.map((p) => `${p.x},${p.y}`));
+  const activeMonsters = dungeon.monsters.filter((m) => !defeatedKeys.has(`${m.x},${m.y}`));
 
   const lines: { x1: number; y1: number; x2: number; y2: number }[] = [];
   for (let y = 0; y < size; y++) {
@@ -82,6 +93,15 @@ export default function HelpMap({ dungeon, playerX, playerY, facing, collectedIt
               strokeWidth={2.5}
               rx={3}
             />
+            {activeMonsters.map((m, i) => (
+              <polygon
+                key={`monster-${i}`}
+                points={`${m.x * CELL + CELL / 2},${m.y * CELL + 5} ${m.x * CELL + CELL - 5},${m.y * CELL + CELL - 5} ${m.x * CELL + 5},${m.y * CELL + CELL - 5}`}
+                fill="#f2a154"
+                stroke="#8a4f1f"
+                strokeWidth={1.5}
+              />
+            ))}
             <g
               transform={`translate(${playerX * CELL + CELL / 2}, ${playerY * CELL + CELL / 2}) rotate(${FACING_ROTATION[facing]})`}
             >
@@ -90,7 +110,8 @@ export default function HelpMap({ dungeon, playerX, playerY, facing, collectedIt
           </svg>
         </div>
         <p className="max-w-xs text-center text-sm text-[#b7aed0]">
-          Red arrow is you. Gold dots are treasure still out there. The green square is the exit.
+          Red arrow is you. Gold dots are treasure still out there. Orange triangles are monsters.
+          The green square is the exit.
         </p>
         <button
           type="button"

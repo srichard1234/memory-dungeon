@@ -1,8 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { BestScores, Difficulty, Direction, Dungeon, Point } from "@/lib/types";
-import { OPPOSITE, canMove, generateDungeon, leftOf, move, pointsEqual, rightOf } from "@/lib/maze";
+import type { BestScores, Difficulty, Direction, Dungeon, Monster, Point } from "@/lib/types";
+import {
+  DIFFICULTY_CONFIGS,
+  OPPOSITE,
+  canMove,
+  findActiveMonster,
+  generateDungeon,
+  leftOf,
+  move,
+  pointsEqual,
+  rightOf,
+} from "@/lib/maze";
 import * as audio from "@/lib/audio";
 import { loadBestScores, recordScore } from "@/lib/storage";
 import DungeonView from "./DungeonView";
@@ -11,6 +21,8 @@ import Controls from "./Controls";
 import HelpMap from "./HelpMap";
 import StartScreen from "./StartScreen";
 import WinScreen from "./WinScreen";
+import SimonPuzzle from "./SimonPuzzle";
+import TileMatchPuzzle from "./TileMatchPuzzle";
 
 type Phase = "start" | "playing" | "win";
 
@@ -21,6 +33,9 @@ export default function Game() {
   const [playerPos, setPlayerPos] = useState<Point>({ x: 0, y: 0 });
   const [facing, setFacing] = useState<Direction>("N");
   const [collectedItems, setCollectedItems] = useState<Point[]>([]);
+  const [defeatedMonsters, setDefeatedMonsters] = useState<Point[]>([]);
+  const [activeMonster, setActiveMonster] = useState<Monster | null>(null);
+  const [exitPuzzleOpen, setExitPuzzleOpen] = useState(false);
   const [steps, setSteps] = useState(0);
   const [bump, setBump] = useState(false);
   const [muted, setMuted] = useState(false);
@@ -63,6 +78,9 @@ export default function Game() {
     setPlayerPos(newDungeon.start);
     setFacing(newDungeon.startFacing);
     setCollectedItems([]);
+    setDefeatedMonsters([]);
+    setActiveMonster(null);
+    setExitPuzzleOpen(false);
     setSteps(0);
     setMessage(null);
     setIsNewBest(false);
@@ -84,13 +102,22 @@ export default function Game() {
 
   const attemptMove = useCallback(
     (direction: "forward" | "back") => {
-      if (!dungeon || phase !== "playing" || helpOpen) return;
+      if (!dungeon || phase !== "playing" || helpOpen || activeMonster || exitPuzzleOpen) return;
       const moveDir = direction === "forward" ? facing : OPPOSITE[facing];
       if (!canMove(dungeon, playerPos.x, playerPos.y, moveDir)) {
         triggerBump();
         return;
       }
       const next = move(playerPos.x, playerPos.y, moveDir);
+
+      // A monster blocks the cell like a wall until its puzzle is solved —
+      // the attempted step opens the encounter instead of completing.
+      const monsterHere = findActiveMonster(dungeon, next.x, next.y, defeatedMonsters);
+      if (monsterHere) {
+        setActiveMonster(monsterHere);
+        return;
+      }
+
       const nextSteps = steps + 1;
       setPlayerPos(next);
       setSteps(nextSteps);
@@ -108,7 +135,7 @@ export default function Game() {
 
       if (pointsEqual(next, dungeon.exit)) {
         if (nextCollected.length === dungeon.items.length) {
-          handleWin(nextSteps);
+          setExitPuzzleOpen(true);
         } else {
           showMessage("Find all the treasure first!");
         }
@@ -118,27 +145,45 @@ export default function Game() {
       dungeon,
       phase,
       helpOpen,
+      activeMonster,
+      exitPuzzleOpen,
       facing,
       playerPos,
       steps,
       collectedItems,
+      defeatedMonsters,
       triggerBump,
       showMessage,
-      handleWin,
     ],
   );
 
   const turnLeft = useCallback(() => {
-    if (phase !== "playing" || helpOpen) return;
+    if (phase !== "playing" || helpOpen || activeMonster || exitPuzzleOpen) return;
     setFacing((f) => leftOf(f));
     audio.playTurn();
-  }, [phase, helpOpen]);
+  }, [phase, helpOpen, activeMonster, exitPuzzleOpen]);
 
   const turnRight = useCallback(() => {
-    if (phase !== "playing" || helpOpen) return;
+    if (phase !== "playing" || helpOpen || activeMonster || exitPuzzleOpen) return;
     setFacing((f) => rightOf(f));
     audio.playTurn();
-  }, [phase, helpOpen]);
+  }, [phase, helpOpen, activeMonster, exitPuzzleOpen]);
+
+  const handleMonsterSolved = useCallback(() => {
+    setActiveMonster((current) => {
+      if (current) setDefeatedMonsters((prev) => [...prev, { x: current.x, y: current.y }]);
+      return null;
+    });
+  }, []);
+
+  const handleMonsterPuzzleClose = useCallback(() => setActiveMonster(null), []);
+
+  const handleExitPuzzleSolved = useCallback(() => {
+    setExitPuzzleOpen(false);
+    handleWin(steps);
+  }, [handleWin, steps]);
+
+  const handleExitPuzzleClose = useCallback(() => setExitPuzzleOpen(false), []);
 
   const toggleMute = useCallback(() => {
     setMuted((m) => {
@@ -160,6 +205,8 @@ export default function Game() {
         if (e.key === "Escape") setHelpOpen(false);
         return;
       }
+      // Monster and exit puzzles capture keyboard input themselves while open.
+      if (activeMonster || exitPuzzleOpen) return;
       switch (e.key) {
         case "ArrowUp":
           e.preventDefault();
@@ -183,7 +230,7 @@ export default function Game() {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [phase, helpOpen, attemptMove, turnLeft, turnRight]);
+  }, [phase, helpOpen, activeMonster, exitPuzzleOpen, attemptMove, turnLeft, turnRight]);
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 p-4">
@@ -210,6 +257,7 @@ export default function Game() {
               facing={facing}
               bump={bump}
               collectedItems={collectedItems}
+              defeatedMonsters={defeatedMonsters}
             />
             {message && (
               <div className="absolute inset-x-0 bottom-3 mx-auto w-fit rounded-md bg-black/70 px-4 py-2 text-sm font-medium text-[#ffd166]">
@@ -223,7 +271,7 @@ export default function Game() {
               onBack={() => attemptMove("back")}
               onTurnLeft={turnLeft}
               onTurnRight={turnRight}
-              disabled={helpOpen}
+              disabled={helpOpen || !!activeMonster || exitPuzzleOpen}
             />
           </div>
           {helpOpen && (
@@ -233,7 +281,23 @@ export default function Game() {
               playerY={playerPos.y}
               facing={facing}
               collectedItems={collectedItems}
+              defeatedMonsters={defeatedMonsters}
               onClose={() => setHelpOpen(false)}
+            />
+          )}
+          {activeMonster && difficulty && (
+            <SimonPuzzle
+              monsterKind={activeMonster.kind}
+              sequenceLength={DIFFICULTY_CONFIGS[difficulty].simonLength}
+              onSolve={handleMonsterSolved}
+              onClose={handleMonsterPuzzleClose}
+            />
+          )}
+          {exitPuzzleOpen && difficulty && (
+            <TileMatchPuzzle
+              pairs={DIFFICULTY_CONFIGS[difficulty].tilePairs}
+              onSolve={handleExitPuzzleSolved}
+              onClose={handleExitPuzzleClose}
             />
           )}
         </>

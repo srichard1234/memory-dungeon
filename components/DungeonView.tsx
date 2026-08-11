@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { Dungeon, Direction, Point } from "@/lib/types";
+import type { Dungeon, Direction, MonsterKind, Point } from "@/lib/types";
 import { getViewSegments } from "@/lib/maze";
 
 interface DungeonViewProps {
@@ -9,6 +9,7 @@ interface DungeonViewProps {
   facing: Direction;
   bump: boolean;
   collectedItems: Point[];
+  defeatedMonsters: Point[];
 }
 
 const VB_W = 400;
@@ -106,8 +107,16 @@ const PORTAL_CORE = "#eafff6";
 const PORTAL_RING_LIGHT = "#bdf5de";
 const FLAME_COLORS = ["#c94f1f", "#ff9d3f", "#ffe2a1"];
 
-export default function DungeonView({ dungeon, x, y, facing, bump, collectedItems }: DungeonViewProps) {
-  const segments = getViewSegments(dungeon, x, y, facing, collectedItems, 3);
+export default function DungeonView({
+  dungeon,
+  x,
+  y,
+  facing,
+  bump,
+  collectedItems,
+  defeatedMonsters,
+}: DungeonViewProps) {
+  const segments = getViewSegments(dungeon, x, y, facing, collectedItems, defeatedMonsters, 3);
   const depthCount = segments.length;
   const shapes: ReactNode[] = [];
 
@@ -217,7 +226,7 @@ export default function DungeonView({ dungeon, x, y, facing, bump, collectedItem
       }
     }
 
-    if (seg.hasItem || seg.isExit) {
+    if (seg.hasItem || seg.isExit || seg.monster) {
       const cx = VX;
       const cy = (near.y1 + far.y1) / 2;
       const corridorMidY = ((near.y0 + near.y1) / 2 + (far.y0 + far.y1) / 2) / 2;
@@ -225,6 +234,8 @@ export default function DungeonView({ dungeon, x, y, facing, bump, collectedItem
       shapes.push(
         seg.isExit ? (
           <g key={`exit-${i}`}>{renderGlowingPortal(cx, corridorMidY, size * 2)}</g>
+        ) : seg.monster ? (
+          <g key={`monster-${i}`}>{renderMonster(seg.monster, cx, cy, size * 2)}</g>
         ) : (
           <g key={`item-${i}`}>{renderTreasureChest(cx, cy, size * 2)}</g>
         ),
@@ -522,4 +533,215 @@ function renderTreasureChest(cx: number, cy: number, size: number): ReactNode {
       <circle cx={cx} cy={baseTop + baseH * 0.42} r={w * 0.035} fill={woodDark} />
     </g>
   );
+}
+
+// Shared friendly-face pieces reused across all seven monster designs, so
+// the whole roster reads as one family: big googly eyes, a simple curved
+// smile.
+function creatureEyes(cx: number, cy: number, spread: number, r: number): ReactNode {
+  return (
+    <>
+      {[-1, 1].map((side) => (
+        <g key={`eye-${side}`}>
+          <circle cx={cx + side * spread} cy={cy} r={r} fill="#fff" />
+          <circle cx={cx + side * spread + side * r * 0.15} cy={cy + r * 0.2} r={r * 0.55} fill="#241c30" />
+          <circle cx={cx + side * spread + side * r * 0.3} cy={cy - r * 0.15} r={r * 0.18} fill="#fff" />
+        </g>
+      ))}
+    </>
+  );
+}
+
+function creatureSmile(cx: number, cy: number, w: number, color: string): ReactNode {
+  return (
+    <path
+      d={`M ${cx - w} ${cy} Q ${cx} ${cy + w * 0.7} ${cx + w} ${cy}`}
+      fill="none"
+      stroke={color}
+      strokeWidth={2}
+      strokeLinecap="round"
+    />
+  );
+}
+
+// A rounded "gumdrop": domed top, gently wavy flat-ish bottom — the
+// slime's body shape.
+function gumdropPath(cx: number, cy: number, rx: number, ry: number): string {
+  return `M ${cx - rx} ${cy}
+    C ${cx - rx} ${cy - ry * 1.05}, ${cx - rx * 0.55} ${cy - ry * 1.55}, ${cx} ${cy - ry * 1.55}
+    C ${cx + rx * 0.55} ${cy - ry * 1.55}, ${cx + rx} ${cy - ry * 1.05}, ${cx + rx} ${cy}
+    Q ${cx + rx * 0.55} ${cy + ry * 0.35}, ${cx} ${cy + ry * 0.15}
+    Q ${cx - rx * 0.55} ${cy + ry * 0.35}, ${cx - rx} ${cy} Z`;
+}
+
+function renderSlime(cx: number, cy: number, size: number): ReactNode {
+  const w = size;
+  return (
+    <g>
+      <path d={gumdropPath(cx, cy, w * 0.5, w * 0.43)} fill="#6fd8c7" stroke="#2c7d70" strokeWidth={1.5} />
+      <ellipse cx={cx - w * 0.17} cy={cy - w * 0.3} rx={w * 0.15} ry={w * 0.08} fill="#ffffff" opacity={0.35} />
+      {creatureEyes(cx, cy + w * 0.03, w * 0.15, w * 0.08)}
+      {creatureSmile(cx, cy + w * 0.23, w * 0.1, "#1d5950")}
+    </g>
+  );
+}
+
+function renderBoo(cx: number, cy: number, size: number): ReactNode {
+  const w = size;
+  const r = w * 0.43;
+  const top = cy - r * 1.3;
+  const bumps = 4;
+  let d = `M ${cx - r} ${cy + r * 0.15} L ${cx - r} ${cy - r * 0.4} Q ${cx - r} ${top} ${cx} ${top} Q ${cx + r} ${top} ${cx + r} ${cy - r * 0.4} L ${cx + r} ${cy + r * 0.15}`;
+  for (let i = bumps; i >= 1; i--) {
+    const x0 = cx - r + (2 * r * i) / bumps;
+    const x1 = cx - r + (2 * r * (i - 1)) / bumps;
+    const xm = (x0 + x1) / 2;
+    d += ` Q ${xm} ${cy + r * 0.55} ${x1} ${cy + r * 0.15}`;
+  }
+  d += " Z";
+  return (
+    <g>
+      <ellipse cx={cx} cy={cy + r * 1.2} rx={r * 0.85} ry={r * 0.2} fill="#000000" opacity={0.25} />
+      <path d={d} fill="#e9def5" stroke="#8f7ba8" strokeWidth={1.5} />
+      {creatureEyes(cx, cy - r * 0.4, w * 0.15, w * 0.08)}
+      {creatureSmile(cx, cy - r * 0.05, w * 0.08, "#6b5a85")}
+    </g>
+  );
+}
+
+function renderToadle(cx: number, cy: number, size: number): ReactNode {
+  const w = size;
+  const stemW = w * 0.26;
+  const stemH = w * 0.42;
+  const capR = w * 0.5;
+  return (
+    <g>
+      <rect
+        x={cx - stemW / 2}
+        y={cy - stemH * 0.3}
+        width={stemW}
+        height={stemH}
+        rx={stemW * 0.4}
+        fill="#f3e6c9"
+        stroke="#b9a06a"
+        strokeWidth={1.5}
+      />
+      <path
+        d={`M ${cx - capR} ${cy - stemH * 0.3} Q ${cx - capR} ${cy - capR * 1.2} ${cx} ${cy - capR * 1.2} Q ${cx + capR} ${cy - capR * 1.2} ${cx + capR} ${cy - stemH * 0.3} Q ${cx} ${cy + stemH * 0.1} ${cx - capR} ${cy - stemH * 0.3} Z`}
+        fill="#e2584a"
+        stroke="#8f3128"
+        strokeWidth={1.5}
+      />
+      {(
+        [
+          [-0.45, -0.7, 0.13],
+          [0.35, -0.85, 0.1],
+          [-0.05, -0.5, 0.1],
+          [0.6, -0.5, 0.08],
+        ] as const
+      ).map(([dx, dy, r], idx) => (
+        <circle key={idx} cx={cx + dx * w} cy={cy + dy * w} r={r * w} fill="#fbe9dd" />
+      ))}
+      {creatureEyes(cx, cy + stemH * 0.15, w * 0.12, w * 0.065)}
+      {creatureSmile(cx, cy + stemH * 0.35, w * 0.06, "#8a6a1a")}
+    </g>
+  );
+}
+
+function renderFlutterling(cx: number, cy: number, size: number): ReactNode {
+  const w = size;
+  const body = "#9b7fd4";
+  return (
+    <g>
+      {[-1, 1].map((side) => (
+        <path
+          key={side}
+          d={`M ${cx} ${cy - w * 0.03} C ${cx + side * w * 0.33} ${cy - w * 0.37}, ${cx + side * w * 0.57} ${cy - w * 0.1}, ${cx + side * w * 0.37} ${cy + w * 0.1} C ${cx + side * w * 0.27} ${cy - w * 0.03}, ${cx + side * w * 0.13} ${cy - w * 0.03}, ${cx} ${cy - w * 0.03} Z`}
+          fill={body}
+          opacity={0.9}
+          stroke="#5f4a96"
+          strokeWidth={1}
+        />
+      ))}
+      <circle cx={cx} cy={cy} r={w * 0.25} fill={body} stroke="#5f4a96" strokeWidth={1.5} />
+      {creatureEyes(cx, cy - w * 0.02, w * 0.1, w * 0.07)}
+      {creatureSmile(cx, cy + w * 0.12, w * 0.07, "#3d2f66")}
+    </g>
+  );
+}
+
+function renderWhisk(cx: number, cy: number, size: number): ReactNode {
+  const w = size;
+  const body = "#c9a876";
+  return (
+    <g>
+      <path
+        d={`M ${cx + w * 0.27} ${cy + w * 0.1} Q ${cx + w * 0.67} ${cy - w * 0.1} ${cx + w * 0.5} ${cy + w * 0.27}`}
+        fill="none"
+        stroke={body}
+        strokeWidth={w * 0.05}
+        strokeLinecap="round"
+      />
+      <ellipse cx={cx} cy={cy + w * 0.13} rx={w * 0.37} ry={w * 0.27} fill={body} stroke="#8a6f45" strokeWidth={1.5} />
+      <circle cx={cx - w * 0.27} cy={cy - w * 0.17} r={w * 0.13} fill={body} stroke="#8a6f45" strokeWidth={1.5} />
+      <circle cx={cx + w * 0.07} cy={cy - w * 0.23} r={w * 0.13} fill={body} stroke="#8a6f45" strokeWidth={1.5} />
+      {creatureEyes(cx - w * 0.07, cy + w * 0.03, w * 0.13, w * 0.06)}
+      <circle cx={cx + w * 0.3} cy={cy + w * 0.05} r={w * 0.03} fill="#3d2f1f" />
+    </g>
+  );
+}
+
+function renderBlinky(cx: number, cy: number, size: number): ReactNode {
+  const w = size;
+  const body = "#c8e05c";
+  return (
+    <g>
+      <ellipse cx={cx} cy={cy} rx={w * 0.43} ry={w * 0.4} fill={body} stroke="#7d9330" strokeWidth={1.5} />
+      <circle cx={cx} cy={cy - w * 0.03} r={w * 0.22} fill="#fff" />
+      <circle cx={cx + w * 0.03} cy={cy} r={w * 0.12} fill="#241c30" />
+      <circle cx={cx + w * 0.08} cy={cy - w * 0.05} r={w * 0.04} fill="#fff" />
+      {creatureSmile(cx, cy + w * 0.27, w * 0.1, "#5c7024")}
+    </g>
+  );
+}
+
+function renderEmberling(cx: number, cy: number, size: number): ReactNode {
+  const w = size;
+  const body = "#f2a154";
+  return (
+    <g>
+      {[-1, 1].map((side) => (
+        <path
+          key={side}
+          d={`M ${cx + side * w * 0.2} ${cy - w * 0.07} Q ${cx + side * w * 0.53} ${cy - w * 0.3} ${cx + side * w * 0.33} ${cy + w * 0.07} Z`}
+          fill="#f7c78a"
+          stroke="#b5713a"
+          strokeWidth={1}
+        />
+      ))}
+      <ellipse cx={cx} cy={cy + w * 0.1} rx={w * 0.37} ry={w * 0.3} fill={body} stroke="#b5713a" strokeWidth={1.5} />
+      <circle cx={cx} cy={cy - w * 0.2} r={w * 0.22} fill={body} stroke="#b5713a" strokeWidth={1.5} />
+      {creatureEyes(cx, cy - w * 0.22, w * 0.1, w * 0.065)}
+      <ellipse cx={cx} cy={cy - w * 0.07} rx={w * 0.08} ry={w * 0.05} fill="#b5713a" />
+    </g>
+  );
+}
+
+export function renderMonster(kind: MonsterKind, cx: number, cy: number, size: number): ReactNode {
+  switch (kind) {
+    case "slime":
+      return renderSlime(cx, cy, size);
+    case "boo":
+      return renderBoo(cx, cy, size);
+    case "toadle":
+      return renderToadle(cx, cy, size);
+    case "flutterling":
+      return renderFlutterling(cx, cy, size);
+    case "whisk":
+      return renderWhisk(cx, cy, size);
+    case "blinky":
+      return renderBlinky(cx, cy, size);
+    case "emberling":
+      return renderEmberling(cx, cy, size);
+  }
 }
