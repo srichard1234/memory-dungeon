@@ -29,3 +29,12 @@ export function recordScore(difficulty: Difficulty, steps: number): boolean {
   }
   return true;
 }
+
+export function clearBestScores(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // localStorage unavailable (private browsing, quota, etc.) — nothing to clear.
+  }
+}
