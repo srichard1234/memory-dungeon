@@ -15,7 +15,7 @@ import {
   rightOf,
 } from "@/lib/maze";
 import * as audio from "@/lib/audio";
-import { loadBestScores, recordScore } from "@/lib/storage";
+import { clearBestScores, loadBestScores, recordScore } from "@/lib/storage";
 import DungeonView from "./DungeonView";
 import StatusBar from "./StatusBar";
 import Controls from "./Controls";
@@ -275,6 +275,11 @@ export default function Game() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [phase, helpOpen, activeMonster, exitPuzzleOpen, attemptMove, turnLeft, turnRight]);
 
+  const resetScores = useCallback(() => {
+    clearBestScores();
+    setBestScores({});
+  }, []);
+
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 p-4">
       {phase === "start" && (
@@ -282,6 +287,7 @@ export default function Game() {
           bestScores={bestScores}
           onStart={startGame}
           onStartTest={process.env.NODE_ENV === "development" ? startTestGame : undefined}
+          onResetScores={resetScores}
         />
       )}
 
