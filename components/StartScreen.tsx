@@ -25,7 +25,7 @@ export default function StartScreen({ bestScores, onStart, onStartTest, onResetS
       <h1 className="text-3xl font-bold text-[#ffd166] sm:text-4xl">Memory Dungeon</h1>
       <p className="max-w-md text-[#c9c0dd]">
         Explore a randomly generated dungeon using the arrow keys or the buttons on screen. Collect
-        every piece of treasure, defeat all the monsters, then find the exit &mdash; try to do it in as few steps as possible. There&apos;s no map on screen, so use your memory!
+        every piece of treasure, defeat all the monsters, then find the exit. Try to do it in as few steps as possible. There&apos;s no map on screen, so use your memory!
       </p>
 
       <div className="flex flex-col gap-3 sm:flex-row">
@@ -41,7 +41,7 @@ export default function StartScreen({ bestScores, onStart, onStartTest, onResetS
             >
               <span className="text-lg">{config.label}</span>
               <span className="text-xs font-normal text-[#8a80a3]">
-                {config.size}×{config.size} grid, {config.itemCount} treasure, {config.monsterCount} monsters
+                {config.size}×{config.size} grid, {config.itemCount} treasures, {config.monsterCount} monsters
               </span>
               <span className="text-xs font-normal text-[#5fd6a8]">
                 {best !== undefined ? `Best: ${best} steps` : "No best score yet"}

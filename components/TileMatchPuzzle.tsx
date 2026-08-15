@@ -147,16 +147,16 @@ export default function TileMatchPuzzle({ pairs, onSolve, onMismatch, onClose }:
                 }}
                 disabled={isMatched}
                 aria-label={isFaceUp ? `${tile.kind} tile` : "hidden tile"}
-                className={`flex h-16 w-16 items-center justify-center rounded-lg transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#ffd166] sm:h-20 sm:w-20 ${
+                className={`flex h-20 w-20 items-center justify-center rounded-lg transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#ffd166] sm:h-24 sm:w-24 ${
                   isFaceUp ? "bg-[#2c2640]" : "bg-[#3b3550] hover:bg-[#443c5e]"
                 } ${cursor === idx ? "ring-2 ring-[#ffd166]" : ""} ${isMatched ? "opacity-70" : ""}`}
               >
                 {isFaceUp ? (
-                  <svg viewBox="0 0 160 160" className="h-12 w-12 sm:h-14 sm:w-14">
-                    {renderMonster(tile.kind, 80, 90, 60)}
+                  <svg viewBox="0 0 160 160" className="h-16 w-16 sm:h-20 sm:w-20">
+                    {renderMonster(tile.kind, 80, 90, 90)}
                   </svg>
                 ) : (
-                  <span className="text-xl text-[#8a80a3]">?</span>
+                  <span className="text-2xl text-[#8a80a3]">?</span>
                 )}
               </button>
             );
