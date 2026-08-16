@@ -17,6 +17,7 @@ type Phase = "intro" | "watch" | "input" | "success";
 
 const DIRECTIONS: Direction[] = ["N", "E", "S", "W"];
 const ARROW_GLYPH: Record<Direction, string> = { N: "▲", E: "▶", S: "▼", W: "◀" };
+const ARROW_COLOR: Record<Direction, string> = { N: "#e0567a", E: "#5f9ee0", W: "#5fd6a8", S: "#f2a154" };
 const KEY_TO_DIR: Record<string, Direction> = {
   ArrowUp: "N",
   ArrowRight: "E",
@@ -247,8 +248,9 @@ function PuzzleButton({
       disabled={disabled}
       onClick={() => onPress(dir)}
       aria-label={`${dir} direction`}
+      style={lit ? undefined : { color: ARROW_COLOR[dir] }}
       className={`flex h-14 w-14 items-center justify-center rounded-xl text-2xl font-bold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#ffd166] disabled:cursor-default ${
-        lit ? "bg-[#ffd166] text-[#1d1830]" : "bg-[#2c2640] text-[#ede6f5]"
+        lit ? "bg-[#ffd166] text-[#1d1830]" : "bg-[#2c2640]"
       } ${disabled && !lit ? "opacity-60" : ""}`}
     >
       {ARROW_GLYPH[dir]}
