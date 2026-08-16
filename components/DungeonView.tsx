@@ -36,6 +36,25 @@ function lerp(a: number, b: number, t: number): number {
 
 type Pt = [number, number];
 
+// Point on a side wall at absolute depth (0 = the cell's near threshold,
+// 1 = its far threshold, fractional depths in between) and vertical
+// fraction v (0 = ceiling, 1 = floor). Positioned via frameAt directly
+// rather than by lerping between two already-computed corners, so wall
+// features (masonry blocks, doorway jambs) stay correctly placed even
+// when only part of the wall's depth range ends up on screen.
+function wallPointAt(side: "left" | "right", depth: number, v: number): Pt {
+  const f = frameAt(depth);
+  const x = side === "left" ? f.x0 : f.x1;
+  return [x, lerp(f.y0, f.y1, v)];
+}
+
+// Point on the floor at absolute depth and width fraction u (0 = left
+// wall, 1 = right wall) — the floor equivalent of wallPointAt.
+function floorPointAt(depth: number, u: number): Pt {
+  const f = frameAt(depth);
+  return [lerp(f.x0, f.x1, u), f.y1];
+}
+
 function lerpPt(a: Pt, b: Pt, t: number): Pt {
   return [lerp(a[0], b[0], t), lerp(a[1], b[1], t)];
 }
@@ -143,14 +162,15 @@ export default function DungeonView({
 
     shapes.push(
       <g key={`floor-${i}`}>
-        {renderFlagstones(
-          [near.x0, near.y1],
-          [near.x1, near.y1],
-          [far.x0, far.y1],
-          [far.x1, far.y1],
-          seg.x,
-          seg.y,
-          i,
+        {i === 0 ? (
+          <>
+            <clipPath id={`floorclip-${i}`}>
+              <polygon points={`${near.x0},${near.y1} ${near.x1},${near.y1} ${far.x1},${far.y1} ${far.x0},${far.y1}`} />
+            </clipPath>
+            <g clipPath={`url(#floorclip-${i})`}>{renderFloorTiles(i, seg.x, seg.y)}</g>
+          </>
+        ) : (
+          renderFloorTiles(i, seg.x, seg.y)
         )}
       </g>,
     );
@@ -271,8 +291,8 @@ export default function DungeonView({
 }
 
 // Individually shaded stone blocks (with mortar gaps) inside an
-// arbitrary quad — used for both side-panel walls and the end wall, so
-// walls read as real masonry rather than a flat fill.
+// arbitrary quad — used for the end wall, so it reads as real masonry
+// rather than a flat fill.
 function renderMasonry(
   topLeft: Pt,
   topRight: Pt,
@@ -306,26 +326,26 @@ function renderMasonry(
   return <>{blocks}</>;
 }
 
-// Individually shaded flagstone tiles across a floor slice.
-function renderFlagstones(
-  topLeft: Pt,
-  topRight: Pt,
-  bottomLeft: Pt,
-  bottomRight: Pt,
-  cellX: number,
-  cellY: number,
-  depth: number,
-): ReactNode {
+// Individually shaded flagstone tiles across a floor slice, positioned at
+// their true absolute depth (cellDepth + t) rather than by subdividing
+// this slice's own near/far corners — so a truncated slice (the room
+// you're standing in) shows correctly proportioned partial/whole tiles
+// instead of squeezing a full tile count into a half-size area.
+function renderFloorTiles(cellDepth: number, cellX: number, cellY: number): ReactNode {
   const rows = 2;
   const cols = 3;
-  const base = shadeForDepth(FLOOR_BASE, depth);
+  const base = shadeForDepth(FLOOR_BASE, cellDepth);
   const tiles: ReactNode[] = [];
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
-      const seed = cellX * 60013 + cellY * 7639 + depth * 4241 + r * 271 + c * 883;
+      const seed = cellX * 60013 + cellY * 7639 + cellDepth * 4241 + r * 271 + c * 883;
       const t = hash01(seed);
       const shade = mixHex(base, "#000000", 0.04 + t * 0.1);
-      const pts = quadCell(topLeft, topRight, bottomLeft, bottomRight, c / cols, (c + 1) / cols, r / rows, (r + 1) / rows);
+      const v0 = cellDepth + r / rows;
+      const v1 = cellDepth + (r + 1) / rows;
+      const u0 = c / cols;
+      const u1 = (c + 1) / cols;
+      const pts = [floorPointAt(v0, u0), floorPointAt(v0, u1), floorPointAt(v1, u1), floorPointAt(v1, u0)];
       tiles.push(
         <polygon
           key={`f-${r}-${c}`}
@@ -339,6 +359,37 @@ function renderFlagstones(
     }
   }
   return <>{tiles}</>;
+}
+
+// Individually shaded masonry blocks across a side wall's height and
+// depth, positioned at their true absolute depth for the same reason as
+// renderFloorTiles above.
+function renderWallMasonry(side: "left" | "right", cellDepth: number, baseColor: string, cellX: number, cellY: number, salt: number): ReactNode {
+  const rows = 3;
+  const cols = 3;
+  const blocks: ReactNode[] = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const seed = cellX * 7919 + cellY * 104729 + salt * 92821 + r * 131 + c * 967;
+      const t = hash01(seed);
+      const shade = mixHex(baseColor, t > 0.5 ? "#ffffff" : "#000000", 0.04 + t * 0.08);
+      const u0 = cellDepth + c / cols;
+      const u1 = cellDepth + (c + 1) / cols;
+      const v0 = r / rows;
+      const v1 = (r + 1) / rows;
+      const pts = [wallPointAt(side, u0, v0), wallPointAt(side, u1, v0), wallPointAt(side, u1, v1), wallPointAt(side, u0, v1)];
+      blocks.push(
+        <polygon
+          key={`m-${r}-${c}`}
+          points={pts.map((p) => p.join(",")).join(" ")}
+          fill={shade}
+          stroke={MORTAR}
+          strokeWidth={1}
+        />,
+      );
+    }
+  }
+  return <>{blocks}</>;
 }
 
 function renderSidePanel(
@@ -356,16 +407,32 @@ function renderSidePanel(
   cellY: number,
   salt: number,
 ): ReactNode {
+  const outline = (
+    <polygon
+      points={`${nearX},${nearY0} ${farX},${farY0} ${farX},${farY1} ${nearX},${nearY1}`}
+      fill="none"
+      stroke={EDGE_STROKE}
+      strokeWidth={1.5}
+    />
+  );
+
   if (!isOpening) {
+    if (cellDepth !== 0) {
+      return (
+        <g key={key}>
+          {renderWallMasonry(side, cellDepth, wallShade(cellDepth), cellX, cellY, salt)}
+          {outline}
+        </g>
+      );
+    }
+    const clipId = `wallclip-${key}`;
     return (
       <g key={key}>
-        {renderMasonry([nearX, nearY0], [farX, farY0], [nearX, nearY1], [farX, farY1], wallShade(cellDepth), cellX, cellY, salt)}
-        <polygon
-          points={`${nearX},${nearY0} ${farX},${farY0} ${farX},${farY1} ${nearX},${nearY1}`}
-          fill="none"
-          stroke={EDGE_STROKE}
-          strokeWidth={1.5}
-        />
+        <clipPath id={clipId}>
+          <polygon points={`${nearX},${nearY0} ${farX},${farY0} ${farX},${farY1} ${nearX},${nearY1}`} />
+        </clipPath>
+        <g clipPath={`url(#${clipId})`}>{renderWallMasonry(side, cellDepth, wallShade(cellDepth), cellX, cellY, salt)}</g>
+        {outline}
       </g>
     );
   }
@@ -386,11 +453,7 @@ function renderSidePanel(
   // below, clipped) against the full wall, not the truncated panel.
   const jambTopFrac = 0.28;
   const jambInset = 0.16;
-  const wallPoint = (t: number, v: number): Pt => {
-    const f = frameAt(cellDepth + t);
-    const x = side === "left" ? f.x0 : f.x1;
-    return [x, lerp(f.y0, f.y1, v)];
-  };
+  const wallPoint = (t: number, v: number): Pt => wallPointAt(side, cellDepth + t, v);
   const springL = wallPoint(jambInset, jambTopFrac);
   const springR = wallPoint(1 - jambInset, jambTopFrac);
   const floorL = wallPoint(jambInset, 1);
@@ -421,16 +484,17 @@ function renderSidePanel(
   );
 
   // The room you're standing in (cellDepth === 0) is only drawn from your
-  // position forward, but a doorway on its side wall spans the wall's
-  // full depth — so clip it to that same visible half. Otherwise the
-  // (off-screen) near portion of the doorway would draw into frame and
-  // it would read as a full doorway facing you rather than one beside
-  // you. Rooms further ahead are entirely in front of you, so their
-  // doorways need no clipping.
+  // position forward, but both the wall's masonry blocks and any doorway
+  // on it span the wall's full depth — so clip both to that same visible
+  // half. Otherwise the (off-screen) near portion would draw into frame:
+  // extra masonry blocks squeezed into the smaller panel instead of
+  // showing proportionally fewer of them, and a doorway reading as a full
+  // archway facing you rather than one beside you. Rooms further ahead
+  // are entirely in front of you, so their walls need no clipping.
   if (cellDepth !== 0) {
     return (
       <g key={key}>
-        {renderMasonry([nearX, nearY0], [farX, farY0], [nearX, nearY1], [farX, farY1], wallShade(cellDepth), cellX, cellY, salt)}
+        {renderWallMasonry(side, cellDepth, wallShade(cellDepth), cellX, cellY, salt)}
         {doorway}
       </g>
     );
@@ -439,11 +503,13 @@ function renderSidePanel(
   const clipId = `doorclip-${key}`;
   return (
     <g key={key}>
-      {renderMasonry([nearX, nearY0], [farX, farY0], [nearX, nearY1], [farX, farY1], wallShade(cellDepth), cellX, cellY, salt)}
       <clipPath id={clipId}>
         <polygon points={`${nearX},${nearY0} ${farX},${farY0} ${farX},${farY1} ${nearX},${nearY1}`} />
       </clipPath>
-      <g clipPath={`url(#${clipId})`}>{doorway}</g>
+      <g clipPath={`url(#${clipId})`}>
+        {renderWallMasonry(side, cellDepth, wallShade(cellDepth), cellX, cellY, salt)}
+        {doorway}
+      </g>
     </g>
   );
 }
