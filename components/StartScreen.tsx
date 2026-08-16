@@ -32,7 +32,7 @@ export default function StartScreen({
       <h1 className="text-3xl font-bold text-[#ffd166] sm:text-4xl">Memory Dungeon</h1>
       <p className="max-w-md text-[#c9c0dd]">
         Explore a randomly generated dungeon using the arrow keys or the buttons on screen. Collect
-        every piece of treasure, defeat all the monsters, then find the exit. Try to do it in as few steps as possible. There&apos;s no map on screen, so use your memory!
+        every piece of treasure, defeat all the monsters, then find the exit. Try to do it in as few steps as possible. Use the map if you get lost, but you'll lose 5 steps every time you open it!
       </p>
 
       <div className="flex flex-col gap-3 sm:flex-row">

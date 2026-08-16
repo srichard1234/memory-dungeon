@@ -67,7 +67,7 @@ export default function StatusBar({
           aria-label="Toggle stuck helper map"
           className="rounded-md bg-[#2c2640] px-3 py-2 font-medium hover:bg-[#3b3550] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#ffd166]"
         >
-          🗺️ I&apos;m stuck?
+          🗺️ View map
         </button>
         <button
           type="button"
