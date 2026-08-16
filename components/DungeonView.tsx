@@ -122,7 +122,10 @@ export default function DungeonView({
 
   // Farthest to nearest so nearer geometry draws on top of it.
   for (let i = depthCount - 1; i >= 0; i--) {
-    const near = frameAt(i);
+    // The room at i === 0 is the one you're standing in, and you're in
+    // its middle rather than at its entrance — so only its forward half
+    // (ceiling, floor, and side walls alike) is actually in front of you.
+    const near = frameAt(i === 0 ? 0.5 : i);
     const far = frameAt(i + 1);
     const seg = segments[i];
     const isLast = i === depthCount - 1;
@@ -155,6 +158,7 @@ export default function DungeonView({
     shapes.push(
       renderSidePanel(
         `left-${i}`,
+        "left",
         near.x0,
         near.y0,
         near.y1,
@@ -171,6 +175,7 @@ export default function DungeonView({
     shapes.push(
       renderSidePanel(
         `right-${i}`,
+        "right",
         near.x1,
         near.y0,
         near.y1,
@@ -338,6 +343,7 @@ function renderFlagstones(
 
 function renderSidePanel(
   key: string,
+  side: "left" | "right",
   nearX: number,
   nearY0: number,
   nearY1: number,
@@ -345,7 +351,7 @@ function renderSidePanel(
   farY0: number,
   farY1: number,
   isOpening: boolean,
-  depth: number,
+  cellDepth: number,
   cellX: number,
   cellY: number,
   salt: number,
@@ -353,7 +359,7 @@ function renderSidePanel(
   if (!isOpening) {
     return (
       <g key={key}>
-        {renderMasonry([nearX, nearY0], [farX, farY0], [nearX, nearY1], [farX, farY1], wallShade(depth), cellX, cellY, salt)}
+        {renderMasonry([nearX, nearY0], [farX, farY0], [nearX, nearY1], [farX, farY1], wallShade(cellDepth), cellX, cellY, salt)}
         <polygon
           points={`${nearX},${nearY0} ${farX},${farY0} ${farX},${farY1} ${nearX},${nearY1}`}
           fill="none"
@@ -371,27 +377,32 @@ function renderSidePanel(
   // edge with nothing but a bare line marking where the wall used to be.
   // Paired with a pair of wall-mounted torches for a recognizable
   // "passage here" symbol.
+  //
+  // Geometry is computed at the doorway's true position along the wall
+  // (cellDepth + t, t in 0..1) via frameAt directly, rather than by
+  // lerping between this panel's own near/far corners — the panel for
+  // the room you're standing in (cellDepth === 0) is itself only the
+  // forward half of the room, so the doorway must be positioned (and,
+  // below, clipped) against the full wall, not the truncated panel.
   const jambTopFrac = 0.28;
   const jambInset = 0.16;
-  const panelPoint = (t: number, v: number): Pt => {
-    const x = lerp(nearX, farX, t);
-    const y0 = lerp(nearY0, farY0, t);
-    const y1 = lerp(nearY1, farY1, t);
-    return [x, lerp(y0, y1, v)];
+  const wallPoint = (t: number, v: number): Pt => {
+    const f = frameAt(cellDepth + t);
+    const x = side === "left" ? f.x0 : f.x1;
+    return [x, lerp(f.y0, f.y1, v)];
   };
-  const springL = panelPoint(jambInset, jambTopFrac);
-  const springR = panelPoint(1 - jambInset, jambTopFrac);
-  const floorL = panelPoint(jambInset, 1);
-  const floorR = panelPoint(1 - jambInset, 1);
-  const archControl: Pt = [(springL[0] + springR[0]) / 2, lerp(nearY0, farY0, 0.5) - 6];
+  const springL = wallPoint(jambInset, jambTopFrac);
+  const springR = wallPoint(1 - jambInset, jambTopFrac);
+  const floorL = wallPoint(jambInset, 1);
+  const floorR = wallPoint(1 - jambInset, 1);
+  const archControl: Pt = [(springL[0] + springR[0]) / 2, frameAt(cellDepth + 0.5).y0 - 6];
   const archPath = `M ${springL[0]} ${springL[1]} Q ${archControl[0]} ${archControl[1]} ${springR[0]} ${springR[1]}`;
   const voidPath = `M ${floorL[0]} ${floorL[1]} L ${springL[0]} ${springL[1]} Q ${archControl[0]} ${archControl[1]} ${springR[0]} ${springR[1]} L ${floorR[0]} ${floorR[1]} Z`;
-  const torchNear = panelPoint(jambInset, 0.34);
-  const torchFar = panelPoint(1 - jambInset, 0.3);
+  const torchNear = wallPoint(jambInset, 0.34);
+  const torchFar = wallPoint(1 - jambInset, 0.3);
 
-  return (
-    <g key={key}>
-      {renderMasonry([nearX, nearY0], [farX, farY0], [nearX, nearY1], [farX, farY1], wallShade(depth), cellX, cellY, salt)}
+  const doorway = (
+    <>
       <path d={voidPath} fill={VOID_FILL} />
       <line x1={floorL[0]} y1={floorL[1]} x2={springL[0]} y2={springL[1]} stroke={EDGE_STROKE} strokeWidth={3} />
       <line x1={floorR[0]} y1={floorR[1]} x2={springR[0]} y2={springR[1]} stroke={EDGE_STROKE} strokeWidth={3} />
@@ -401,11 +412,38 @@ function renderSidePanel(
         fill="none"
         stroke={DOORWAY_GLOW}
         strokeWidth={1.4}
-        strokeOpacity={Math.max(0.35, 0.9 - depth * 0.22)}
+        strokeOpacity={Math.max(0.35, 0.9 - cellDepth * 0.22)}
         filter="url(#doorglow)"
       />
-      {ironTorch(torchNear[0], torchNear[1], Math.pow(SCALE, depth))}
-      {ironTorch(torchFar[0], torchFar[1], Math.pow(SCALE, depth + 1))}
+      {ironTorch(torchNear[0], torchNear[1], Math.pow(SCALE, cellDepth))}
+      {ironTorch(torchFar[0], torchFar[1], Math.pow(SCALE, cellDepth + 1))}
+    </>
+  );
+
+  // The room you're standing in (cellDepth === 0) is only drawn from your
+  // position forward, but a doorway on its side wall spans the wall's
+  // full depth — so clip it to that same visible half. Otherwise the
+  // (off-screen) near portion of the doorway would draw into frame and
+  // it would read as a full doorway facing you rather than one beside
+  // you. Rooms further ahead are entirely in front of you, so their
+  // doorways need no clipping.
+  if (cellDepth !== 0) {
+    return (
+      <g key={key}>
+        {renderMasonry([nearX, nearY0], [farX, farY0], [nearX, nearY1], [farX, farY1], wallShade(cellDepth), cellX, cellY, salt)}
+        {doorway}
+      </g>
+    );
+  }
+
+  const clipId = `doorclip-${key}`;
+  return (
+    <g key={key}>
+      {renderMasonry([nearX, nearY0], [farX, farY0], [nearX, nearY1], [farX, farY1], wallShade(cellDepth), cellX, cellY, salt)}
+      <clipPath id={clipId}>
+        <polygon points={`${nearX},${nearY0} ${farX},${farY0} ${farX},${farY1} ${nearX},${nearY1}`} />
+      </clipPath>
+      <g clipPath={`url(#${clipId})`}>{doorway}</g>
     </g>
   );
 }
