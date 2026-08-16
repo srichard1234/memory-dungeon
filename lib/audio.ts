@@ -13,11 +13,6 @@ function getContext(): AudioContext | null {
     if (!Ctor) return null;
     ctx = new Ctor();
   }
-  // Browsers suspend new contexts until a user gesture; each play call
-  // happens in response to a keypress/click, so resume is safe here.
-  if (ctx.state === "suspended") {
-    void ctx.resume();
-  }
   return ctx;
 }
 
@@ -37,10 +32,7 @@ interface Tone {
   gain?: number;
 }
 
-function playTones(tones: Tone[]): void {
-  if (muted) return;
-  const audioCtx = getContext();
-  if (!audioCtx) return;
+function scheduleTones(audioCtx: AudioContext, tones: Tone[]): void {
   const now = audioCtx.currentTime;
 
   for (const tone of tones) {
@@ -60,6 +52,25 @@ function playTones(tones: Tone[]): void {
     gainNode.connect(audioCtx.destination);
     osc.start(startAt);
     osc.stop(endAt + 0.02);
+  }
+}
+
+function playTones(tones: Tone[]): void {
+  if (muted) return;
+  const audioCtx = getContext();
+  if (!audioCtx) return;
+
+  // Browsers can suspend an idle context (e.g. after it sits unused while
+  // muted, or the tab loses focus). Scheduling against currentTime before
+  // resume() has actually taken effect stamps the notes with a stale time
+  // that the browser silently drops once it does resume — so when the
+  // context isn't already running, wait for resume to land first rather
+  // than scheduling immediately, or the next sound after unmuting can go
+  // silent.
+  if (audioCtx.state === "suspended") {
+    audioCtx.resume().then(() => scheduleTones(audioCtx, tones)).catch(() => {});
+  } else {
+    scheduleTones(audioCtx, tones);
   }
 }
 
