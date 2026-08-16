@@ -13,8 +13,12 @@ interface StartScreenProps {
 const DIFFICULTIES: Difficulty[] = ["small", "medium", "large"];
 
 const TEST_DUNGEONS: { kind: TestDungeonKind; label: string }[] = [
-  { kind: "monster", label: "Test: Monster" },
-  { kind: "portal", label: "Test: Portal" },
+  { kind: "monster", label: "Test: Monster (small)" },
+  { kind: "monster2", label: "Test: Monster (medium)" },
+  { kind: "monster3", label: "Test: Monster (large)" },
+  { kind: "portal", label: "Test: Portal (small)" },
+  { kind: "portal2", label: "Test: Portal (medium)" },
+  { kind: "portal3", label: "Test: Portal (large)" },
 ];
 
 export default function StartScreen({
@@ -108,7 +112,7 @@ export default function StartScreen({
       {onStartTest && (
         <div className="flex flex-col items-center gap-2 border-t border-[#3b3550] pt-4">
           <span className="text-xs uppercase tracking-wide text-[#8a80a3]">Dev: isolated tests</span>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap justify-center gap-3">
             {TEST_DUNGEONS.map(({ kind, label }) => (
               <button
                 key={kind}

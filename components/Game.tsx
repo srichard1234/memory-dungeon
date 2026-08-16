@@ -5,6 +5,7 @@ import type { BestScores, Difficulty, Direction, Dungeon, Monster, Point, TestDu
 import {
   DIFFICULTY_CONFIGS,
   OPPOSITE,
+  TEST_DUNGEON_DIFFICULTY,
   canMove,
   findActiveMonster,
   generateDungeon,
@@ -105,11 +106,12 @@ export default function Game() {
 
   // Dev/test helper: a fixed two-room dungeon for exercising just a monster
   // encounter or just the exit portal, reachable via the "Test:" buttons on
-  // the start screen (dev builds only) or a `?test=monster` / `?test=portal`
-  // URL query param.
+  // the start screen (dev builds only) or a `?test=` URL query param — e.g.
+  // `?test=monster` for small, `?test=monster2` for medium, `?test=monster3`
+  // for large (same suffix scheme for `portal`).
   const startTestGame = useCallback((kind: TestDungeonKind) => {
     const newDungeon = generateTestDungeon(kind);
-    setDifficulty("small");
+    setDifficulty(TEST_DUNGEON_DIFFICULTY[kind]);
     setDungeon(newDungeon);
     setPlayerPos(newDungeon.start);
     setFacing(newDungeon.startFacing);
@@ -129,7 +131,9 @@ export default function Game() {
 
   useEffect(() => {
     const test = new URLSearchParams(window.location.search).get("test");
-    if (test === "monster" || test === "portal") startTestGame(test);
+    if (test !== null && test in TEST_DUNGEON_DIFFICULTY) {
+      startTestGame(test as TestDungeonKind);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

@@ -17,6 +17,18 @@ export const DIFFICULTY_CONFIGS: Record<Difficulty, DifficultyConfig> = {
   large: { size: 13, itemCount: 8, label: "Large", monsterCount: 7, simonLength: 8, tilePairs: 8 },
 };
 
+// Dev/test dungeons (`?test=` on the start screen) name their difficulty by
+// suffix — "monster"/"portal" is small, "2" is medium, "3" is large — so the
+// puzzle they trigger is sized like the real difficulty being exercised.
+export const TEST_DUNGEON_DIFFICULTY: Record<TestDungeonKind, Difficulty> = {
+  monster: "small",
+  monster2: "medium",
+  monster3: "large",
+  portal: "small",
+  portal2: "medium",
+  portal3: "large",
+};
+
 const MONSTER_KINDS: MonsterKind[] = [
   "slime",
   "boo",
@@ -231,7 +243,7 @@ export function generateTestDungeon(kind: TestDungeonKind): Dungeon {
   // placeholder exit when this dungeon isn't testing the portal itself.
   const unreachable: Point = { x: 1, y: 1 };
 
-  if (kind === "monster") {
+  if (kind.startsWith("monster")) {
     return {
       size,
       cells,

@@ -2,7 +2,7 @@ export type Direction = "N" | "E" | "S" | "W";
 
 export type Difficulty = "small" | "medium" | "large";
 
-export type TestDungeonKind = "monster" | "portal";
+export type TestDungeonKind = "monster" | "monster2" | "monster3" | "portal" | "portal2" | "portal3";
 
 export type MonsterKind =
   | "slime"
