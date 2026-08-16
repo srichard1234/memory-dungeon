@@ -73,7 +73,7 @@ export function playTurn(): void {
 
 // One distinct pitch per direction, so the monster puzzle's arrow sequence
 // can be memorized by ear as well as by eye/color.
-const DIRECTION_TONE: Record<Direction, number> = { N: 523.25, E: 659.25, S: 392.0, W: 440.0 };
+const DIRECTION_TONE: Record<Direction, number> = { N: 659.25, E: 523.25, S: 392.0, W: 440.0 };
 
 export function playDirection(dir: Direction): void {
   playTones([{ freq: DIRECTION_TONE[dir], start: 0, duration: 0.16, type: "triangle", gain: 0.18 }]);
