@@ -732,6 +732,33 @@ function renderEmberling(cx: number, cy: number, size: number): ReactNode {
   );
 }
 
+function renderFrostling(cx: number, cy: number, size: number): ReactNode {
+  const w = size;
+  const body = "#9fd4e8";
+  const spike = (angle: number) => {
+    const rad = (angle * Math.PI) / 180;
+    const tipX = cx + Math.cos(rad) * w * 0.5;
+    const tipY = cy + Math.sin(rad) * w * 0.5;
+    const baseAngle1 = rad + Math.PI / 2;
+    const baseAngle2 = rad - Math.PI / 2;
+    const b1x = cx + Math.cos(baseAngle1) * w * 0.08;
+    const b1y = cy + Math.sin(baseAngle1) * w * 0.08;
+    const b2x = cx + Math.cos(baseAngle2) * w * 0.08;
+    const b2y = cy + Math.sin(baseAngle2) * w * 0.08;
+    return `M ${b1x} ${b1y} L ${tipX} ${tipY} L ${b2x} ${b2y} Z`;
+  };
+  return (
+    <g>
+      {[-90, -18, 54, 126, 198].map((angle) => (
+        <path key={angle} d={spike(angle)} fill="#d6f0fa" stroke="#5f9cb8" strokeWidth={1} opacity={0.85} />
+      ))}
+      <circle cx={cx} cy={cy} r={w * 0.32} fill={body} stroke="#4a7d96" strokeWidth={1.5} />
+      {creatureEyes(cx, cy - w * 0.02, w * 0.1, w * 0.065)}
+      {creatureSmile(cx, cy + w * 0.12, w * 0.06, "#2f5568")}
+    </g>
+  );
+}
+
 export function renderMonster(kind: MonsterKind, cx: number, cy: number, size: number): ReactNode {
   switch (kind) {
     case "slime":
@@ -748,5 +775,7 @@ export function renderMonster(kind: MonsterKind, cx: number, cy: number, size: n
       return renderBlinky(cx, cy, size);
     case "emberling":
       return renderEmberling(cx, cy, size);
+    case "frostling":
+      return renderFrostling(cx, cy, size);
   }
 }

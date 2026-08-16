@@ -31,6 +31,7 @@ const MONSTER_NAMES: Record<MonsterKind, string> = {
   whisk: "Whisk",
   blinky: "Blinky",
   emberling: "Emberling",
+  frostling: "Frostling",
 };
 
 function withIndefiniteArticle(name: string): string {

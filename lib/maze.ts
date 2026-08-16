@@ -17,7 +17,16 @@ export const DIFFICULTY_CONFIGS: Record<Difficulty, DifficultyConfig> = {
   large: { size: 13, itemCount: 8, label: "Large", monsterCount: 7, simonLength: 8, tilePairs: 8 },
 };
 
-const MONSTER_KINDS: MonsterKind[] = ["slime", "boo", "toadle", "flutterling", "whisk", "blinky", "emberling"];
+const MONSTER_KINDS: MonsterKind[] = [
+  "slime",
+  "boo",
+  "toadle",
+  "flutterling",
+  "whisk",
+  "blinky",
+  "emberling",
+  "frostling",
+];
 
 const DIRECTIONS: Direction[] = ["N", "E", "S", "W"];
 

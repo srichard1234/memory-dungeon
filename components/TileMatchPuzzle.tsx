@@ -17,7 +17,16 @@ interface Tile {
   kind: MonsterKind;
 }
 
-const ALL_KINDS: MonsterKind[] = ["slime", "boo", "toadle", "flutterling", "whisk", "blinky", "emberling"];
+const ALL_KINDS: MonsterKind[] = [
+  "slime",
+  "boo",
+  "toadle",
+  "flutterling",
+  "whisk",
+  "blinky",
+  "emberling",
+  "frostling",
+];
 
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];

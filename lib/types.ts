@@ -4,7 +4,15 @@ export type Difficulty = "small" | "medium" | "large";
 
 export type TestDungeonKind = "monster" | "portal";
 
-export type MonsterKind = "slime" | "boo" | "toadle" | "flutterling" | "whisk" | "blinky" | "emberling";
+export type MonsterKind =
+  | "slime"
+  | "boo"
+  | "toadle"
+  | "flutterling"
+  | "whisk"
+  | "blinky"
+  | "emberling"
+  | "frostling";
 
 export interface DifficultyConfig {
   size: number;
