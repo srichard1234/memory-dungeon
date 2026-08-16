@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { MonsterKind } from "@/lib/types";
 import * as audio from "@/lib/audio";
+import { useFocusTrap } from "@/lib/useFocusTrap";
 import { renderMonster } from "./DungeonView";
 
 interface TileMatchPuzzleProps {
@@ -53,6 +54,7 @@ export default function TileMatchPuzzle({ pairs, onSolve, onMismatch, onClose }:
   const [locked, setLocked] = useState(false);
   const [cursor, setCursor] = useState(0);
   const timeouts = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const dialogRef = useFocusTrap<HTMLDivElement>();
 
   const after = useCallback((ms: number, fn: () => void) => {
     timeouts.current.push(setTimeout(fn, ms));
@@ -132,14 +134,16 @@ export default function TileMatchPuzzle({ pairs, onSolve, onMismatch, onClose }:
 
   return (
     <div
+      ref={dialogRef}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
       role="dialog"
       aria-modal="true"
       aria-label="Exit memory match puzzle"
+      tabIndex={-1}
     >
       <div className="flex flex-col items-center gap-4 rounded-xl bg-[#1d1830] p-6">
         <h2 className="text-center text-lg font-semibold">Match every pair to open the portal</h2>
-        <p className="text-sm text-[#b7aed0]">
+        <p role="status" className="text-sm text-[#b7aed0]">
           {matchedPairs} / {pairs} pairs found
         </p>
         <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>

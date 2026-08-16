@@ -1,4 +1,5 @@
 import type { Dungeon, Direction, Point } from "@/lib/types";
+import { useFocusTrap } from "@/lib/useFocusTrap";
 
 interface HelpMapProps {
   dungeon: Dungeon;
@@ -30,6 +31,8 @@ export default function HelpMap({
   const defeatedKeys = new Set(defeatedMonsters.map((p) => `${p.x},${p.y}`));
   const activeMonsters = dungeon.monsters.filter((m) => !defeatedKeys.has(`${m.x},${m.y}`));
 
+  const dialogRef = useFocusTrap<HTMLDivElement>();
+
   const lines: { x1: number; y1: number; x2: number; y2: number }[] = [];
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
@@ -47,10 +50,12 @@ export default function HelpMap({
 
   return (
     <div
+      ref={dialogRef}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
       role="dialog"
       aria-modal="true"
       aria-label="Full dungeon map"
+      tabIndex={-1}
       onClick={onClose}
     >
       <div

@@ -49,7 +49,11 @@ export default function WinScreen({
         <p className="text-sm text-[#8a80a3]">Your best for this difficulty: {bestSteps} steps</p>
       ) : null}
 
-      {checkingLeaderboard && <p className="text-xs text-[#8a80a3]">Checking the leaderboard…</p>}
+      {checkingLeaderboard && (
+        <p role="status" className="text-xs text-[#8a80a3]">
+          Checking the leaderboard…
+        </p>
+      )}
 
       {qualifiesForLeaderboard && submitState !== "done" && (
         <div className="flex w-full max-w-xs flex-col items-center gap-2 rounded-md bg-[#2c2640] p-4">
@@ -75,7 +79,7 @@ export default function WinScreen({
             {submitState === "submitting" ? "Submitting…" : "Submit score"}
           </button>
           {submitState === "error" && (
-            <p className="text-xs text-[#e0567a]">
+            <p role="alert" className="text-xs text-[#e0567a]">
               {submitError === "name not allowed"
                 ? "That name isn't allowed — try another."
                 : "Couldn't submit — try again."}

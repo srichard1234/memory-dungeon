@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { Difficulty, LeaderboardEntry } from "@/lib/types";
 import { DIFFICULTY_CONFIGS } from "@/lib/maze";
 import { fetchLeaderboard } from "@/lib/leaderboard";
+import { useFocusTrap } from "@/lib/useFocusTrap";
 
 interface LeaderboardProps {
   defaultDifficulty: Difficulty;
@@ -16,6 +17,7 @@ export default function Leaderboard({ defaultDifficulty, onClose }: LeaderboardP
   const [difficulty, setDifficulty] = useState<Difficulty>(defaultDifficulty);
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [state, setState] = useState<LoadState>("loading");
+  const dialogRef = useFocusTrap<HTMLDivElement>();
 
   useEffect(() => {
     let cancelled = false;
@@ -36,12 +38,25 @@ export default function Leaderboard({ defaultDifficulty, onClose }: LeaderboardP
     };
   }, [difficulty]);
 
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
+
   return (
     <div
+      ref={dialogRef}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
       role="dialog"
       aria-modal="true"
       aria-label="Leaderboard"
+      tabIndex={-1}
       onClick={onClose}
     >
       <div

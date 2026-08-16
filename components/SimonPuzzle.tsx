@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Direction, MonsterKind } from "@/lib/types";
 import * as audio from "@/lib/audio";
+import { useFocusTrap } from "@/lib/useFocusTrap";
 import { renderMonster } from "./DungeonView";
 
 interface SimonPuzzleProps {
@@ -51,6 +52,7 @@ export default function SimonPuzzle({ monsterKind, sequenceLength, onSolve, onFa
   const [pressedDir, setPressedDir] = useState<Direction | null>(null);
   const [shake, setShake] = useState(false);
   const timeouts = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const dialogRef = useFocusTrap<HTMLDivElement>();
 
   const clearTimers = useCallback(() => {
     timeouts.current.forEach(clearTimeout);
@@ -136,10 +138,12 @@ export default function SimonPuzzle({ monsterKind, sequenceLength, onSolve, onFa
 
   return (
     <div
+      ref={dialogRef}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
       role="dialog"
       aria-modal="true"
       aria-label={`${MONSTER_NAMES[monsterKind]} puzzle`}
+      tabIndex={-1}
     >
       <div
         className={`flex flex-col items-center gap-4 rounded-xl bg-[#1d1830] p-6 ${shake ? "animate-bump" : ""}`}

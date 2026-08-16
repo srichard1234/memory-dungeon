@@ -360,7 +360,10 @@ export default function Game() {
             />
             <Compass facing={facing} />
             {message && (
-              <div className="absolute inset-x-0 bottom-3 mx-auto w-fit rounded-md bg-black/70 px-4 py-2 text-sm font-medium text-[#ffd166]">
+              <div
+                role="status"
+                className="absolute inset-x-0 bottom-3 mx-auto w-fit rounded-md bg-black/70 px-4 py-2 text-sm font-medium text-[#ffd166]"
+              >
                 {message}
               </div>
             )}
