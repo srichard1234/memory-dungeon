@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { BestScores, Difficulty, TestDungeonKind } from "@/lib/types";
 import { DIFFICULTY_CONFIGS } from "@/lib/maze";
+import { VERSION } from "@/lib/version";
 
 interface StartScreenProps {
   bestScores: BestScores;
@@ -126,6 +127,8 @@ export default function StartScreen({
           </div>
         </div>
       )}
+
+      <div className="text-[10px] text-[#5c5470]">v{VERSION}</div>
     </div>
   );
 }
