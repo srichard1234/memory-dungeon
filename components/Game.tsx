@@ -37,6 +37,7 @@ type LeaderboardCheck = "idle" | "checking" | "qualifies" | "no";
 export default function Game() {
   const [phase, setPhase] = useState<Phase>("start");
   const [difficulty, setDifficulty] = useState<Difficulty | null>(null);
+  const [isTestGame, setIsTestGame] = useState(false);
   const [dungeon, setDungeon] = useState<Dungeon | null>(null);
   const [playerPos, setPlayerPos] = useState<Point>({ x: 0, y: 0 });
   const [facing, setFacing] = useState<Direction>("N");
@@ -88,6 +89,7 @@ export default function Game() {
   const startGame = useCallback((chosen: Difficulty) => {
     const newDungeon = generateDungeon(chosen);
     setDifficulty(chosen);
+    setIsTestGame(false);
     setDungeon(newDungeon);
     setPlayerPos(newDungeon.start);
     setFacing(newDungeon.startFacing);
@@ -113,6 +115,7 @@ export default function Game() {
   const startTestGame = useCallback((kind: TestDungeonKind) => {
     const newDungeon = generateTestDungeon(kind);
     setDifficulty(TEST_DUNGEON_DIFFICULTY[kind]);
+    setIsTestGame(true);
     setDungeon(newDungeon);
     setPlayerPos(newDungeon.start);
     setFacing(newDungeon.startFacing);
@@ -141,11 +144,21 @@ export default function Game() {
   const handleWin = useCallback(
     (finalSteps: number) => {
       if (!difficulty) return;
+      audio.playWin();
+      setPhase("win");
+
+      // Test dungeons are trivial fixed layouts for exercising a single
+      // encounter — their "scores" aren't real runs, so they shouldn't
+      // pollute local best scores or be offered up to the leaderboard.
+      if (isTestGame) {
+        setIsNewBest(false);
+        setLeaderboardCheck("no");
+        return;
+      }
+
       const newBest = recordScore(difficulty, finalSteps);
       setIsNewBest(newBest);
       setBestScores(loadBestScores());
-      audio.playWin();
-      setPhase("win");
 
       setLeaderboardCheck("checking");
       fetchLeaderboard(difficulty)
@@ -154,7 +167,7 @@ export default function Game() {
         })
         .catch(() => setLeaderboardCheck("no"));
     },
-    [difficulty],
+    [difficulty, isTestGame],
   );
 
   const attemptMove = useCallback(
