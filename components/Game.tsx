@@ -17,6 +17,7 @@ import {
 import * as audio from "@/lib/audio";
 import { clearBestScores, loadBestScores, loadPlayerName, recordScore, savePlayerName } from "@/lib/storage";
 import { fetchLeaderboard, qualifiesForLeaderboard, submitScore } from "@/lib/leaderboard";
+import Compass from "./Compass";
 import DungeonView from "./DungeonView";
 import StatusBar from "./StatusBar";
 import Controls from "./Controls";
@@ -357,6 +358,7 @@ export default function Game() {
               collectedItems={collectedItems}
               defeatedMonsters={defeatedMonsters}
             />
+            <Compass facing={facing} />
             {message && (
               <div className="absolute inset-x-0 bottom-3 mx-auto w-fit rounded-md bg-black/70 px-4 py-2 text-sm font-medium text-[#ffd166]">
                 {message}
