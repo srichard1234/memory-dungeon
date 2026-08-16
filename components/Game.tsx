@@ -28,6 +28,7 @@ import WinScreen from "./WinScreen";
 import SimonPuzzle from "./SimonPuzzle";
 import TileMatchPuzzle from "./TileMatchPuzzle";
 import Leaderboard from "./Leaderboard";
+import UpdateBanner from "./UpdateBanner";
 
 type Phase = "start" | "playing" | "win";
 type SubmitState = "idle" | "submitting" | "done" | "error";
@@ -327,6 +328,7 @@ export default function Game() {
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 p-4">
+      <UpdateBanner />
       {phase === "start" && (
         <StartScreen
           bestScores={bestScores}
