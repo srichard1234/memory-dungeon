@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import sql from "@/lib/db";
 import { DIFFICULTY_CONFIGS } from "@/lib/maze";
+import { LEADERBOARD_SIZE, normalizeName } from "@/lib/leaderboard";
 import type { Difficulty } from "@/lib/types";
 
 const DIFFICULTIES: Difficulty[] = ["small", "medium", "large"];
-const TOP_N = 10;
 
 function isDifficulty(value: unknown): value is Difficulty {
   return typeof value === "string" && (DIFFICULTIES as string[]).includes(value);
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     select name, steps, created_at from scores
     where difficulty = ${difficulty}
     order by steps asc, created_at asc
-    limit ${TOP_N}
+    limit ${LEADERBOARD_SIZE}
   `;
   return NextResponse.json({ scores: rows });
 }
@@ -38,11 +38,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "invalid steps" }, { status: 400 });
   }
 
-  const trimmedName = typeof name === "string" ? name.trim().slice(0, 12) : "";
-  if (!trimmedName) {
+  const normalizedName = typeof name === "string" ? normalizeName(name) : "";
+  if (!normalizedName) {
     return NextResponse.json({ error: "invalid name" }, { status: 400 });
   }
 
-  await sql`insert into scores (difficulty, name, steps) values (${difficulty}, ${trimmedName}, ${steps})`;
+  await sql`insert into scores (difficulty, name, steps) values (${difficulty}, ${normalizedName}, ${steps})`;
   return NextResponse.json({ ok: true });
 }

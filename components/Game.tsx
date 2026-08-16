@@ -16,7 +16,7 @@ import {
 } from "@/lib/maze";
 import * as audio from "@/lib/audio";
 import { clearBestScores, loadBestScores, loadPlayerName, recordScore, savePlayerName } from "@/lib/storage";
-import { submitScore } from "@/lib/leaderboard";
+import { fetchLeaderboard, qualifiesForLeaderboard, submitScore } from "@/lib/leaderboard";
 import DungeonView from "./DungeonView";
 import StatusBar from "./StatusBar";
 import Controls from "./Controls";
@@ -29,6 +29,7 @@ import Leaderboard from "./Leaderboard";
 
 type Phase = "start" | "playing" | "win";
 type SubmitState = "idle" | "submitting" | "done" | "error";
+type LeaderboardCheck = "idle" | "checking" | "qualifies" | "no";
 
 export default function Game() {
   const [phase, setPhase] = useState<Phase>("start");
@@ -50,6 +51,7 @@ export default function Game() {
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
   const [playerName, setPlayerName] = useState("");
   const [submitState, setSubmitState] = useState<SubmitState>("idle");
+  const [leaderboardCheck, setLeaderboardCheck] = useState<LeaderboardCheck>("idle");
 
   const bumpTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const messageTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -93,6 +95,7 @@ export default function Game() {
     setMessage(null);
     setIsNewBest(false);
     setSubmitState("idle");
+    setLeaderboardCheck("idle");
     setHelpOpen(false);
     setPhase("playing");
   }, []);
@@ -115,6 +118,7 @@ export default function Game() {
     setMessage(null);
     setIsNewBest(false);
     setSubmitState("idle");
+    setLeaderboardCheck("idle");
     setHelpOpen(false);
     setPhase("playing");
   }, []);
@@ -133,6 +137,13 @@ export default function Game() {
       setBestScores(loadBestScores());
       audio.playWin();
       setPhase("win");
+
+      setLeaderboardCheck("checking");
+      fetchLeaderboard(difficulty)
+        .then((entries) => {
+          setLeaderboardCheck(qualifiesForLeaderboard(entries, finalSteps) ? "qualifies" : "no");
+        })
+        .catch(() => setLeaderboardCheck("no"));
     },
     [difficulty],
   );
@@ -297,6 +308,7 @@ export default function Game() {
       setSubmitState("submitting");
       const ok = await submitScore(difficulty, name, steps);
       setSubmitState(ok ? "done" : "error");
+      if (ok) setLeaderboardOpen(true);
     },
     [difficulty, steps],
   );
@@ -394,6 +406,8 @@ export default function Game() {
           isNewBest={isNewBest}
           playerName={playerName}
           submitState={submitState}
+          checkingLeaderboard={leaderboardCheck === "checking"}
+          qualifiesForLeaderboard={leaderboardCheck === "qualifies"}
           onPlayAgain={() => startGame(difficulty)}
           onChangeDifficulty={() => setPhase("start")}
           onSubmitScore={submitScoreToLeaderboard}

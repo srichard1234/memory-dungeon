@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { MAX_NAME_LENGTH, normalizeName } from "@/lib/leaderboard";
 
 type SubmitState = "idle" | "submitting" | "done" | "error";
 
@@ -8,6 +9,8 @@ interface WinScreenProps {
   isNewBest: boolean;
   playerName: string;
   submitState: SubmitState;
+  checkingLeaderboard: boolean;
+  qualifiesForLeaderboard: boolean;
   onPlayAgain: () => void;
   onChangeDifficulty: () => void;
   onSubmitScore: (name: string) => void;
@@ -20,12 +23,14 @@ export default function WinScreen({
   isNewBest,
   playerName,
   submitState,
+  checkingLeaderboard,
+  qualifiesForLeaderboard,
   onPlayAgain,
   onChangeDifficulty,
   onSubmitScore,
   onOpenLeaderboard,
 }: WinScreenProps) {
-  const [name, setName] = useState(playerName);
+  const [name, setName] = useState(normalizeName(playerName));
 
   return (
     <div className="flex flex-col items-center gap-5 rounded-xl bg-[#1d1830] p-8 text-center">
@@ -42,36 +47,33 @@ export default function WinScreen({
         <p className="text-sm text-[#8a80a3]">Your best for this difficulty: {bestSteps} steps</p>
       ) : null}
 
-      {isNewBest && (
+      {checkingLeaderboard && <p className="text-xs text-[#8a80a3]">Checking the leaderboard…</p>}
+
+      {qualifiesForLeaderboard && submitState !== "done" && (
         <div className="flex w-full max-w-xs flex-col items-center gap-2 rounded-md bg-[#2c2640] p-4">
-          {submitState === "done" ? (
-            <p className="text-sm font-semibold text-[#5fd6a8]">Submitted to the leaderboard!</p>
-          ) : (
-            <>
-              <label htmlFor="leaderboard-name" className="text-xs text-[#c9c0dd]">
-                Post this score to the global leaderboard
-              </label>
-              <input
-                id="leaderboard-name"
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                maxLength={12}
-                placeholder="Your name"
-                className="w-full rounded-md bg-[#0f0c18] px-3 py-2 text-center text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#ffd166]"
-              />
-              <button
-                type="button"
-                onClick={() => onSubmitScore(name)}
-                disabled={!name.trim() || submitState === "submitting"}
-                className="rounded-md bg-[#5fd6a8] px-4 py-2 text-sm font-semibold text-[#0f0c18] hover:bg-[#4bc394] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#ffd166]"
-              >
-                {submitState === "submitting" ? "Submitting…" : "Submit score"}
-              </button>
-              {submitState === "error" && (
-                <p className="text-xs text-[#e0567a]">Couldn&apos;t submit — try again.</p>
-              )}
-            </>
+          <p className="text-sm font-semibold text-[#ffd166]">You made it to the leaderboard!</p>
+          <label htmlFor="leaderboard-name" className="text-xs text-[#c9c0dd]">
+            Enter your name (up to {MAX_NAME_LENGTH} letters)
+          </label>
+          <input
+            id="leaderboard-name"
+            type="text"
+            value={name}
+            onChange={(e) => setName(normalizeName(e.target.value))}
+            maxLength={MAX_NAME_LENGTH}
+            placeholder="NAME"
+            className="w-full rounded-md bg-[#0f0c18] px-3 py-2 text-center text-sm uppercase tracking-widest focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#ffd166]"
+          />
+          <button
+            type="button"
+            onClick={() => onSubmitScore(name)}
+            disabled={!name || submitState === "submitting"}
+            className="rounded-md bg-[#5fd6a8] px-4 py-2 text-sm font-semibold text-[#0f0c18] hover:bg-[#4bc394] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#ffd166]"
+          >
+            {submitState === "submitting" ? "Submitting…" : "Submit score"}
+          </button>
+          {submitState === "error" && (
+            <p className="text-xs text-[#e0567a]">Couldn&apos;t submit — try again.</p>
           )}
         </div>
       )}
