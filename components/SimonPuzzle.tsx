@@ -64,6 +64,7 @@ export default function SimonPuzzle({ monsterKind, sequenceLength, onSolve, onFa
     setPhase("watch");
     setInputProgress(0);
     setHighlightIndex(-1);
+    setPressedDir(null);
     const stepMs = 650;
     sequence.forEach((_, i) => {
       after(500 + i * stepMs, () => {
