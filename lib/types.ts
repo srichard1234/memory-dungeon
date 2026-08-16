@@ -63,3 +63,9 @@ export interface BestScores {
   medium?: number;
   large?: number;
 }
+
+export interface LeaderboardEntry {
+  name: string;
+  steps: number;
+  created_at: string;
+}

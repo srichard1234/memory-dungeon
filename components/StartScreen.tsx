@@ -7,6 +7,7 @@ interface StartScreenProps {
   onStart: (difficulty: Difficulty) => void;
   onStartTest?: (kind: TestDungeonKind) => void;
   onResetScores?: () => void;
+  onOpenLeaderboard: () => void;
 }
 
 const DIFFICULTIES: Difficulty[] = ["small", "medium", "large"];
@@ -16,7 +17,13 @@ const TEST_DUNGEONS: { kind: TestDungeonKind; label: string }[] = [
   { kind: "portal", label: "Test: Portal" },
 ];
 
-export default function StartScreen({ bestScores, onStart, onStartTest, onResetScores }: StartScreenProps) {
+export default function StartScreen({
+  bestScores,
+  onStart,
+  onStartTest,
+  onResetScores,
+  onOpenLeaderboard,
+}: StartScreenProps) {
   const [confirmingReset, setConfirmingReset] = useState(false);
   const hasAnyScore = Object.keys(bestScores).length > 0;
 
@@ -50,6 +57,14 @@ export default function StartScreen({ bestScores, onStart, onStartTest, onResetS
           );
         })}
       </div>
+
+      <button
+        type="button"
+        onClick={onOpenLeaderboard}
+        className="rounded-md bg-[#2c2640] px-4 py-2 text-sm font-semibold hover:bg-[#3b3550] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#ffd166]"
+      >
+        🏆 Leaderboard
+      </button>
 
       {onResetScores && hasAnyScore && (
         <div>

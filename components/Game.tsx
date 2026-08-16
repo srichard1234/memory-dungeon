@@ -15,7 +15,8 @@ import {
   rightOf,
 } from "@/lib/maze";
 import * as audio from "@/lib/audio";
-import { clearBestScores, loadBestScores, recordScore } from "@/lib/storage";
+import { clearBestScores, loadBestScores, loadPlayerName, recordScore, savePlayerName } from "@/lib/storage";
+import { submitScore } from "@/lib/leaderboard";
 import DungeonView from "./DungeonView";
 import StatusBar from "./StatusBar";
 import Controls from "./Controls";
@@ -24,8 +25,10 @@ import StartScreen from "./StartScreen";
 import WinScreen from "./WinScreen";
 import SimonPuzzle from "./SimonPuzzle";
 import TileMatchPuzzle from "./TileMatchPuzzle";
+import Leaderboard from "./Leaderboard";
 
 type Phase = "start" | "playing" | "win";
+type SubmitState = "idle" | "submitting" | "done" | "error";
 
 export default function Game() {
   const [phase, setPhase] = useState<Phase>("start");
@@ -44,6 +47,9 @@ export default function Game() {
   const [message, setMessage] = useState<string | null>(null);
   const [bestScores, setBestScores] = useState<BestScores>({});
   const [isNewBest, setIsNewBest] = useState(false);
+  const [leaderboardOpen, setLeaderboardOpen] = useState(false);
+  const [playerName, setPlayerName] = useState("");
+  const [submitState, setSubmitState] = useState<SubmitState>("idle");
 
   const bumpTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const messageTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -53,6 +59,7 @@ export default function Game() {
     // must be read after mount rather than in the initial state.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setBestScores(loadBestScores());
+    setPlayerName(loadPlayerName());
     return () => {
       if (bumpTimeout.current) clearTimeout(bumpTimeout.current);
       if (messageTimeout.current) clearTimeout(messageTimeout.current);
@@ -85,6 +92,7 @@ export default function Game() {
     setSteps(0);
     setMessage(null);
     setIsNewBest(false);
+    setSubmitState("idle");
     setHelpOpen(false);
     setPhase("playing");
   }, []);
@@ -106,6 +114,7 @@ export default function Game() {
     setSteps(0);
     setMessage(null);
     setIsNewBest(false);
+    setSubmitState("idle");
     setHelpOpen(false);
     setPhase("playing");
   }, []);
@@ -280,6 +289,21 @@ export default function Game() {
     setBestScores({});
   }, []);
 
+  const submitScoreToLeaderboard = useCallback(
+    async (name: string) => {
+      if (!difficulty) return;
+      savePlayerName(name);
+      setPlayerName(name);
+      setSubmitState("submitting");
+      const ok = await submitScore(difficulty, name, steps);
+      setSubmitState(ok ? "done" : "error");
+    },
+    [difficulty, steps],
+  );
+
+  const openLeaderboard = useCallback(() => setLeaderboardOpen(true), []);
+  const closeLeaderboard = useCallback(() => setLeaderboardOpen(false), []);
+
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 p-4">
       {phase === "start" && (
@@ -288,6 +312,7 @@ export default function Game() {
           onStart={startGame}
           onStartTest={process.env.NODE_ENV === "development" ? startTestGame : undefined}
           onResetScores={resetScores}
+          onOpenLeaderboard={openLeaderboard}
         />
       )}
 
@@ -367,9 +392,17 @@ export default function Game() {
           steps={steps}
           bestSteps={bestScores[difficulty]}
           isNewBest={isNewBest}
+          playerName={playerName}
+          submitState={submitState}
           onPlayAgain={() => startGame(difficulty)}
           onChangeDifficulty={() => setPhase("start")}
+          onSubmitScore={submitScoreToLeaderboard}
+          onOpenLeaderboard={openLeaderboard}
         />
+      )}
+
+      {leaderboardOpen && (
+        <Leaderboard defaultDifficulty={difficulty ?? "small"} onClose={closeLeaderboard} />
       )}
     </div>
   );
