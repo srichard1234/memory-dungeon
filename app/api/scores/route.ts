@@ -3,6 +3,7 @@ import sql from "@/lib/db";
 import { DIFFICULTY_CONFIGS } from "@/lib/maze";
 import { LEADERBOARD_SIZE, normalizeName } from "@/lib/leaderboard";
 import { isProfane } from "@/lib/profanity";
+import { checkRateLimit, hashClientIp, isSameOrigin } from "@/lib/rateLimit";
 import type { Difficulty } from "@/lib/types";
 
 const DIFFICULTIES: Difficulty[] = ["small", "medium", "large"];
@@ -27,6 +28,15 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  if (!isSameOrigin(request)) {
+    return NextResponse.json({ error: "invalid origin" }, { status: 403 });
+  }
+
+  const withinLimit = await checkRateLimit(hashClientIp(request));
+  if (!withinLimit) {
+    return NextResponse.json({ error: "too many requests" }, { status: 429 });
+  }
+
   const body = await request.json().catch(() => null);
   const { difficulty, name, steps } = (body ?? {}) as Record<string, unknown>;
 
