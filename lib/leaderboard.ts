@@ -1,7 +1,7 @@
 import { Difficulty, LeaderboardEntry } from "./types";
 
 export const LEADERBOARD_SIZE = 10;
-export const MAX_NAME_LENGTH = 7;
+export const MAX_NAME_LENGTH = 8;
 
 export async function fetchLeaderboard(difficulty: Difficulty): Promise<LeaderboardEntry[]> {
   const res = await fetch(`/api/scores?difficulty=${difficulty}`);
