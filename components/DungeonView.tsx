@@ -365,30 +365,36 @@ function renderSidePanel(
   }
 
   // Doorway: solid masonry filling the whole wall, with a true black void
-  // punched out in an actual arch shape (curved top, not a flat line
-  // capped by a decorative stroke) — so the stonework reads as a real
-  // archway with mass on either side, not a bare curve floating in space.
+  // punched out in an actual arch shape — inset from both the near and far
+  // edges of the panel so stone jamb columns flank the opening on the
+  // sides too, not just above it, rather than the void running edge to
+  // edge with nothing but a bare line marking where the wall used to be.
   // Paired with a pair of wall-mounted torches for a recognizable
   // "passage here" symbol.
   const jambTopFrac = 0.28;
-  const springNear: Pt = [nearX, lerp(nearY0, nearY1, jambTopFrac)];
-  const springFar: Pt = [farX, lerp(farY0, farY1, jambTopFrac)];
-  const archControl: Pt = [(nearX + farX) / 2, nearY0 - 6];
-  const archPath = `M ${springNear[0]} ${springNear[1]} Q ${archControl[0]} ${archControl[1]} ${springFar[0]} ${springFar[1]}`;
-  const voidPath = `M ${nearX} ${nearY1} L ${springNear[0]} ${springNear[1]} Q ${archControl[0]} ${archControl[1]} ${springFar[0]} ${springFar[1]} L ${farX} ${farY1} Z`;
+  const jambInset = 0.16;
+  const panelPoint = (t: number, v: number): Pt => {
+    const x = lerp(nearX, farX, t);
+    const y0 = lerp(nearY0, farY0, t);
+    const y1 = lerp(nearY1, farY1, t);
+    return [x, lerp(y0, y1, v)];
+  };
+  const springL = panelPoint(jambInset, jambTopFrac);
+  const springR = panelPoint(1 - jambInset, jambTopFrac);
+  const floorL = panelPoint(jambInset, 1);
+  const floorR = panelPoint(1 - jambInset, 1);
+  const archControl: Pt = [(springL[0] + springR[0]) / 2, lerp(nearY0, farY0, 0.5) - 6];
+  const archPath = `M ${springL[0]} ${springL[1]} Q ${archControl[0]} ${archControl[1]} ${springR[0]} ${springR[1]}`;
+  const voidPath = `M ${floorL[0]} ${floorL[1]} L ${springL[0]} ${springL[1]} Q ${archControl[0]} ${archControl[1]} ${springR[0]} ${springR[1]} L ${floorR[0]} ${floorR[1]} Z`;
+  const torchNear = panelPoint(jambInset, 0.34);
+  const torchFar = panelPoint(1 - jambInset, 0.3);
 
   return (
     <g key={key}>
       {renderMasonry([nearX, nearY0], [farX, farY0], [nearX, nearY1], [farX, farY1], wallShade(depth), cellX, cellY, salt)}
       <path d={voidPath} fill={VOID_FILL} />
-      <line
-        x1={nearX}
-        y1={nearY1}
-        x2={nearX}
-        y2={springNear[1]}
-        stroke={EDGE_STROKE}
-        strokeWidth={3}
-      />
+      <line x1={floorL[0]} y1={floorL[1]} x2={springL[0]} y2={springL[1]} stroke={EDGE_STROKE} strokeWidth={3} />
+      <line x1={floorR[0]} y1={floorR[1]} x2={springR[0]} y2={springR[1]} stroke={EDGE_STROKE} strokeWidth={3} />
       <path d={archPath} fill="none" stroke={EDGE_STROKE} strokeWidth={3} />
       <path
         d={archPath}
@@ -398,8 +404,8 @@ function renderSidePanel(
         strokeOpacity={Math.max(0.35, 0.9 - depth * 0.22)}
         filter="url(#doorglow)"
       />
-      {ironTorch(nearX, lerp(nearY0, nearY1, 0.34), Math.pow(SCALE, depth))}
-      {ironTorch(farX, lerp(farY0, farY1, 0.3), Math.pow(SCALE, depth + 1))}
+      {ironTorch(torchNear[0], torchNear[1], Math.pow(SCALE, depth))}
+      {ironTorch(torchFar[0], torchFar[1], Math.pow(SCALE, depth + 1))}
     </g>
   );
 }
