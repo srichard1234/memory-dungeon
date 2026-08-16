@@ -1,6 +1,8 @@
 // Small synthesized sound effects via the Web Audio API — no audio files,
 // so the game stays a single self-contained static export.
 
+import type { Direction } from "./types";
+
 let ctx: AudioContext | null = null;
 let muted = false;
 
@@ -67,6 +69,14 @@ export function playStep(): void {
 
 export function playTurn(): void {
   playTones([{ freq: 330, start: 0, duration: 0.05, type: "triangle", gain: 0.1 }]);
+}
+
+// One distinct pitch per direction, so the monster puzzle's arrow sequence
+// can be memorized by ear as well as by eye/color.
+const DIRECTION_TONE: Record<Direction, number> = { N: 523.25, E: 659.25, S: 392.0, W: 440.0 };
+
+export function playDirection(dir: Direction): void {
+  playTones([{ freq: DIRECTION_TONE[dir], start: 0, duration: 0.16, type: "triangle", gain: 0.18 }]);
 }
 
 export function playBump(): void {

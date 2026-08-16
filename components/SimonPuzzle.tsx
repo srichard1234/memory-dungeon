@@ -71,7 +71,7 @@ export default function SimonPuzzle({ monsterKind, sequenceLength, onSolve, onFa
     sequence.forEach((_, i) => {
       after(500 + i * stepMs, () => {
         setHighlightIndex(i);
-        audio.playTurn();
+        audio.playDirection(sequence[i]);
       });
       after(500 + i * stepMs + 400, () => setHighlightIndex(-1));
     });
@@ -87,14 +87,14 @@ export default function SimonPuzzle({ monsterKind, sequenceLength, onSolve, onFa
       after(150, () => setPressedDir(null));
 
       if (dir === sequence[inputProgress]) {
+        audio.playDirection(dir);
         const next = inputProgress + 1;
         if (next === sequence.length) {
-          audio.playPickup();
           setPhase("success");
           clearTimers();
+          after(150, () => audio.playPickup());
           after(700, onSolve);
         } else {
-          audio.playStep();
           setInputProgress(next);
         }
       } else {
