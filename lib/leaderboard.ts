@@ -1,7 +1,7 @@
 import { Difficulty, LeaderboardEntry } from "./types";
 
 export const LEADERBOARD_SIZE = 10;
-export const MAX_NAME_LENGTH = 5;
+export const MAX_NAME_LENGTH = 7;
 
 export async function fetchLeaderboard(difficulty: Difficulty): Promise<LeaderboardEntry[]> {
   const res = await fetch(`/api/scores?difficulty=${difficulty}`);
@@ -10,13 +10,20 @@ export async function fetchLeaderboard(difficulty: Difficulty): Promise<Leaderbo
   return data.scores;
 }
 
-export async function submitScore(difficulty: Difficulty, name: string, steps: number): Promise<boolean> {
+export interface SubmitScoreResult {
+  ok: boolean;
+  error?: string;
+}
+
+export async function submitScore(difficulty: Difficulty, name: string, steps: number): Promise<SubmitScoreResult> {
   const res = await fetch("/api/scores", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ difficulty, name, steps }),
   });
-  return res.ok;
+  if (res.ok) return { ok: true };
+  const data = await res.json().catch(() => null);
+  return { ok: false, error: typeof data?.error === "string" ? data.error : undefined };
 }
 
 // A run qualifies once the board has fewer than LEADERBOARD_SIZE entries, or

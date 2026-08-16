@@ -51,6 +51,7 @@ export default function Game() {
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
   const [playerName, setPlayerName] = useState("");
   const [submitState, setSubmitState] = useState<SubmitState>("idle");
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [leaderboardCheck, setLeaderboardCheck] = useState<LeaderboardCheck>("idle");
 
   const bumpTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -95,6 +96,7 @@ export default function Game() {
     setMessage(null);
     setIsNewBest(false);
     setSubmitState("idle");
+    setSubmitError(null);
     setLeaderboardCheck("idle");
     setHelpOpen(false);
     setPhase("playing");
@@ -118,6 +120,7 @@ export default function Game() {
     setMessage(null);
     setIsNewBest(false);
     setSubmitState("idle");
+    setSubmitError(null);
     setLeaderboardCheck("idle");
     setHelpOpen(false);
     setPhase("playing");
@@ -306,9 +309,10 @@ export default function Game() {
       savePlayerName(name);
       setPlayerName(name);
       setSubmitState("submitting");
-      const ok = await submitScore(difficulty, name, steps);
-      setSubmitState(ok ? "done" : "error");
-      if (ok) setLeaderboardOpen(true);
+      const result = await submitScore(difficulty, name, steps);
+      setSubmitState(result.ok ? "done" : "error");
+      setSubmitError(result.ok ? null : (result.error ?? null));
+      if (result.ok) setLeaderboardOpen(true);
     },
     [difficulty, steps],
   );
@@ -406,6 +410,7 @@ export default function Game() {
           isNewBest={isNewBest}
           playerName={playerName}
           submitState={submitState}
+          submitError={submitError}
           checkingLeaderboard={leaderboardCheck === "checking"}
           qualifiesForLeaderboard={leaderboardCheck === "qualifies"}
           onPlayAgain={() => startGame(difficulty)}

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import sql from "@/lib/db";
 import { DIFFICULTY_CONFIGS } from "@/lib/maze";
 import { LEADERBOARD_SIZE, normalizeName } from "@/lib/leaderboard";
+import { isProfane } from "@/lib/profanity";
 import type { Difficulty } from "@/lib/types";
 
 const DIFFICULTIES: Difficulty[] = ["small", "medium", "large"];
@@ -41,6 +42,9 @@ export async function POST(request: NextRequest) {
   const normalizedName = typeof name === "string" ? normalizeName(name) : "";
   if (!normalizedName) {
     return NextResponse.json({ error: "invalid name" }, { status: 400 });
+  }
+  if (isProfane(normalizedName)) {
+    return NextResponse.json({ error: "name not allowed" }, { status: 400 });
   }
 
   await sql`insert into scores (difficulty, name, steps) values (${difficulty}, ${normalizedName}, ${steps})`;

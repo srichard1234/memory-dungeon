@@ -9,6 +9,7 @@ interface WinScreenProps {
   isNewBest: boolean;
   playerName: string;
   submitState: SubmitState;
+  submitError: string | null;
   checkingLeaderboard: boolean;
   qualifiesForLeaderboard: boolean;
   onPlayAgain: () => void;
@@ -23,6 +24,7 @@ export default function WinScreen({
   isNewBest,
   playerName,
   submitState,
+  submitError,
   checkingLeaderboard,
   qualifiesForLeaderboard,
   onPlayAgain,
@@ -73,7 +75,11 @@ export default function WinScreen({
             {submitState === "submitting" ? "Submitting…" : "Submit score"}
           </button>
           {submitState === "error" && (
-            <p className="text-xs text-[#e0567a]">Couldn&apos;t submit — try again.</p>
+            <p className="text-xs text-[#e0567a]">
+              {submitError === "name not allowed"
+                ? "That name isn't allowed — try another."
+                : "Couldn't submit — try again."}
+            </p>
           )}
         </div>
       )}
