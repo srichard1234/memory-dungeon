@@ -65,6 +65,10 @@ export default function Leaderboard({ defaultDifficulty, onClose }: LeaderboardP
           ))}
         </div>
 
+        <p className="text-xs text-[#8a80a3]">
+          {DIFFICULTY_CONFIGS[difficulty].size}×{DIFFICULTY_CONFIGS[difficulty].size} grid
+        </p>
+
         <div className="max-h-[50vh] w-full overflow-auto rounded-md bg-[#0f0c18] p-3">
           {state === "loading" && <p className="py-4 text-center text-sm text-[#8a80a3]">Loading…</p>}
           {state === "error" && (
