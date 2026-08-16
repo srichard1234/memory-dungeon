@@ -364,29 +364,28 @@ function renderSidePanel(
     );
   }
 
-  // Doorway: a true black void plus an arched stone frame and a pair of
-  // wall-mounted torches — a recognizable "passage here" symbol rather
-  // than a subtle color/glow difference.
+  // Doorway: solid masonry filling the whole wall, with a true black void
+  // punched out in an actual arch shape (curved top, not a flat line
+  // capped by a decorative stroke) — so the stonework reads as a real
+  // archway with mass on either side, not a bare curve floating in space.
+  // Paired with a pair of wall-mounted torches for a recognizable
+  // "passage here" symbol.
   const jambTopFrac = 0.28;
-  const jamb: Pt[] = [
-    [nearX, nearY1],
-    [nearX, lerp(nearY0, nearY1, jambTopFrac)],
-    [farX, lerp(farY0, farY1, jambTopFrac)],
-    [farX, farY1],
-  ];
-  const archStart: Pt = [nearX, lerp(nearY0, nearY1, jambTopFrac)];
-  const archEnd: Pt = [farX, lerp(farY0, farY1, jambTopFrac)];
+  const springNear: Pt = [nearX, lerp(nearY0, nearY1, jambTopFrac)];
+  const springFar: Pt = [farX, lerp(farY0, farY1, jambTopFrac)];
   const archControl: Pt = [(nearX + farX) / 2, nearY0 - 6];
-  const archPath = `M ${archStart[0]} ${archStart[1]} Q ${archControl[0]} ${archControl[1]} ${archEnd[0]} ${archEnd[1]}`;
+  const archPath = `M ${springNear[0]} ${springNear[1]} Q ${archControl[0]} ${archControl[1]} ${springFar[0]} ${springFar[1]}`;
+  const voidPath = `M ${nearX} ${nearY1} L ${springNear[0]} ${springNear[1]} Q ${archControl[0]} ${archControl[1]} ${springFar[0]} ${springFar[1]} L ${farX} ${farY1} Z`;
 
   return (
     <g key={key}>
-      <polygon points={jamb.map((p) => p.join(",")).join(" ")} fill={VOID_FILL} />
+      {renderMasonry([nearX, nearY0], [farX, farY0], [nearX, nearY1], [farX, farY1], wallShade(depth), cellX, cellY, salt)}
+      <path d={voidPath} fill={VOID_FILL} />
       <line
         x1={nearX}
         y1={nearY1}
         x2={nearX}
-        y2={lerp(nearY0, nearY1, jambTopFrac)}
+        y2={springNear[1]}
         stroke={EDGE_STROKE}
         strokeWidth={3}
       />
