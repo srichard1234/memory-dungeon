@@ -156,16 +156,28 @@ export default function Game() {
         return;
       }
 
-      const newBest = recordScore(difficulty, finalSteps);
-      setIsNewBest(newBest);
+      // Local per-browser stat shown on the start screen and as the
+      // "your best for this difficulty" fallback text — independent of the
+      // leaderboard, since it should track every run, not just ones tied to
+      // a submitted name.
+      recordScore(difficulty, finalSteps);
       setBestScores(loadBestScores());
+      setIsNewBest(false);
 
       setLeaderboardCheck("checking");
       Promise.all([fetchLeaderboard(difficulty), fetchPersonalBest(difficulty, playerName)])
         .then(([entries, personalBest]) => {
+          // "New best score!" reflects the leaderboard-tracked personal
+          // best (server-side, tied to the player's name) rather than the
+          // local stat above, so it can't go stale after clearing storage
+          // or switching browsers.
+          setIsNewBest(personalBest == null || finalSteps < personalBest);
           setLeaderboardCheck(qualifiesForLeaderboard(entries, finalSteps, personalBest) ? "qualifies" : "no");
         })
-        .catch(() => setLeaderboardCheck("no"));
+        .catch(() => {
+          setIsNewBest(false);
+          setLeaderboardCheck("no");
+        });
     },
     [difficulty, isTestGame, playerName],
   );
