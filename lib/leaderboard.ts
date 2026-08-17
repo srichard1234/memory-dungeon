@@ -27,7 +27,10 @@ export async function submitScore(difficulty: Difficulty, name: string, steps: n
 }
 
 // A run qualifies once the board has fewer than LEADERBOARD_SIZE entries, or
-// it beats (or ties) the current lowest-ranked entry.
+// it beats (or ties) the current lowest-ranked entry. This is only a
+// client-side hint for whether to show the name-entry form — the server
+// makes the real call, rejecting submissions that don't beat the player's
+// own previous best for that difficulty (see POST /api/scores).
 export function qualifiesForLeaderboard(entries: LeaderboardEntry[], steps: number): boolean {
   if (entries.length < LEADERBOARD_SIZE) return true;
   return steps <= entries[entries.length - 1].steps;

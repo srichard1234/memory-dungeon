@@ -57,6 +57,19 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "name not allowed" }, { status: 400 });
   }
 
-  await sql`insert into scores (difficulty, name, steps) values (${difficulty}, ${normalizedName}, ${steps})`;
+  // Upsert on (difficulty, name): a player keeps only one row per
+  // difficulty, and it's only replaced when the new run beats their
+  // existing best. The WHERE clause makes this atomic against races.
+  const inserted = await sql`
+    insert into scores (difficulty, name, steps)
+    values (${difficulty}, ${normalizedName}, ${steps})
+    on conflict (difficulty, name)
+    do update set steps = excluded.steps, created_at = excluded.created_at
+    where scores.steps > excluded.steps
+    returning id
+  `;
+  if (inserted.length === 0) {
+    return NextResponse.json({ error: "not a new best" }, { status: 409 });
+  }
   return NextResponse.json({ ok: true });
 }

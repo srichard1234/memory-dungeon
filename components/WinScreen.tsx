@@ -82,7 +82,9 @@ export default function WinScreen({
             <p role="alert" className="text-xs text-[#e0567a]">
               {submitError === "name not allowed"
                 ? "That name isn't allowed — try another."
-                : "Couldn't submit — try again."}
+                : submitError === "not a new best"
+                  ? "You already have a better score on the leaderboard under this name."
+                  : "Couldn't submit — try again."}
             </p>
           )}
         </div>
