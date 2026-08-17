@@ -17,7 +17,7 @@ import {
 } from "@/lib/maze";
 import * as audio from "@/lib/audio";
 import { clearBestScores, loadBestScores, loadPlayerName, recordScore, savePlayerName } from "@/lib/storage";
-import { fetchLeaderboard, qualifiesForLeaderboard, submitScore } from "@/lib/leaderboard";
+import { fetchLeaderboard, fetchPersonalBest, qualifiesForLeaderboard, submitScore } from "@/lib/leaderboard";
 import Compass from "./Compass";
 import DungeonView from "./DungeonView";
 import StatusBar from "./StatusBar";
@@ -161,13 +161,13 @@ export default function Game() {
       setBestScores(loadBestScores());
 
       setLeaderboardCheck("checking");
-      fetchLeaderboard(difficulty)
-        .then((entries) => {
-          setLeaderboardCheck(qualifiesForLeaderboard(entries, finalSteps) ? "qualifies" : "no");
+      Promise.all([fetchLeaderboard(difficulty), fetchPersonalBest(difficulty, playerName)])
+        .then(([entries, personalBest]) => {
+          setLeaderboardCheck(qualifiesForLeaderboard(entries, finalSteps, personalBest) ? "qualifies" : "no");
         })
         .catch(() => setLeaderboardCheck("no"));
     },
-    [difficulty, isTestGame],
+    [difficulty, isTestGame, playerName],
   );
 
   const attemptMove = useCallback(

@@ -18,6 +18,19 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "invalid difficulty" }, { status: 400 });
   }
 
+  // A named lookup returns that player's own row, regardless of whether it
+  // ranks inside the visible top LEADERBOARD_SIZE — used to check a run
+  // against a personal best that may have fallen off the displayed board.
+  const name = request.nextUrl.searchParams.get("name");
+  if (name !== null) {
+    const normalizedName = normalizeName(name);
+    if (!normalizedName) return NextResponse.json({ steps: null });
+    const rows = await sql`
+      select steps from scores where difficulty = ${difficulty} and name = ${normalizedName} limit 1
+    `;
+    return NextResponse.json({ steps: rows[0]?.steps ?? null });
+  }
+
   const rows = await sql`
     select name, steps, created_at from scores
     where difficulty = ${difficulty}
