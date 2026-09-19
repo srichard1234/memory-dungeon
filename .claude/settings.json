@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__Claude_Browser__get_page_text",
+      "mcp__Claude_Browser__read_page",
+      "mcp__Claude_Browser__read_console_messages",
+      "Bash(npx tsc --noEmit*)",
+      "Bash(npm run lint*)",
+      "mcp__Claude_Browser__read_network_requests",
+      "Bash(curl -s http://localhost:*)",
+      "mcp__Claude_Browser__preview_list",
+      "Bash(claude mcp add --help*)",
+      "Bash(npx eslint *)",
+      "mcp__supabase__list_projects",
+      "mcp__supabase__get_advisors",
+      "mcp__supabase__list_tables",
+      "mcp__claude-in-chrome__get_page_text",
+      "mcp__claude-in-chrome__read_network_requests",
+      "Bash(npx --yes skills --help*)",
+      "Bash(supabase --version*)",
+      "mcp__supabase__list_migrations"
+    ]
+  }
+}
