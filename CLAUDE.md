@@ -1,3 +1,7 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 @AGENTS.md
 
 # Memory Dungeon
@@ -5,6 +9,57 @@
 A browser maze game (Next.js App Router, TypeScript, Tailwind) with a Supabase-backed
 Postgres leaderboard. `components/Game.tsx` is the central state machine — most gameplay
 state lives there and flows down as props.
+
+## Commands
+
+- `npm run dev` — start the dev server (port 3000, or 3100+ if that's taken — see
+  `.claude/launch.json` → `memory-dungeon-dev`, which uses `autoPort`)
+- `npm run build` — production build
+- `npm run start` — serve the production build
+- `npm run lint` — ESLint (flat config: `eslint-config-next` core-web-vitals + typescript)
+- `npx tsc --noEmit` — typecheck
+
+No automated test suite exists. Verify changes with `npx tsc --noEmit` plus manual
+checks against the dev server.
+
+## Architecture
+
+### Game state machine
+`components/Game.tsx` owns nearly all gameplay state — phase, dungeon, player
+position/facing, collected items, defeated monsters, the active puzzle, step count,
+and leaderboard-submission state — and passes it down as props to presentational
+children:
+- `DungeonView` — first-person corridor view for the current cell/facing
+- `Compass`, `StatusBar`, `Controls`, `HelpMap` — playing-phase HUD/chrome
+- `SimonPuzzle` — memory-sequence puzzle blocking a monster's cell until solved
+- `TileMatchPuzzle` — memory tile-match puzzle gating the exit portal
+- `StartScreen` / `WinScreen` / `Leaderboard` — the other top-level phases
+- `UpdateBanner` — polls `/api/version` (`lib/useVersionCheck.ts`) to prompt a reload
+  when the deployed build has moved on from an already-open tab
+
+`phase` (`"start" | "playing" | "win"`) drives which top-level view renders;
+`difficulty` and `isTestGame` travel alongside it to size puzzles and gate
+score/leaderboard writes (see Test dungeons below).
+
+### Maze generation & movement
+`lib/maze.ts` holds `DIFFICULTY_CONFIGS` (grid size, item/monster counts, puzzle
+lengths per difficulty), dungeon generation (`generateDungeon`, `generateTestDungeon`),
+and movement/turn helpers (`canMove`, `move`, `leftOf`/`rightOf`, `findActiveMonster`).
+A monster occupies its cell like a wall — `attemptMove` in `Game.tsx` intercepts a step
+into a live monster's cell and opens `SimonPuzzle` instead of completing the move.
+`lib/types.ts` defines the shared domain types (`Dungeon`, `Cell`, `Direction`,
+`Monster`, etc.).
+
+### API routes
+- `GET/POST /api/scores` — leaderboard read/write, see Leaderboard model below
+- `GET /api/version` — returns the deployed `package.json` version with `no-store`, so
+  `UpdateBanner` can detect a stale open tab
+
+### Security headers
+`next.config.ts` sets a strict CSP and related headers (`X-Frame-Options: DENY`, HSTS,
+etc.) on every response via `headers()`. Adding any external script, font, image, or
+fetch target requires updating the matching `connect-src`/`script-src`/etc. directive
+too, or it will be silently blocked in production.
 
 ## Database access — no supabase-js
 
@@ -54,8 +109,5 @@ scores or hit the leaderboard — see the `isTestGame` gate in `Game.tsx`.
   (`package.json` patch version) and creates an extra commit on every push. It won't
   exist after a fresh clone — don't assume it's there, and don't manually bump the
   version yourself.
-- No automated test suite exists. Verify changes with `npx tsc --noEmit` plus manual
-  checks against the dev server (`.claude/launch.json` → `memory-dungeon-dev`, port
-  3000 with `autoPort`, so it may come up on 3100+ if something's already running).
 - `.env.local` holds real Supabase service-role keys and DB passwords — never echo,
   log, or commit its contents.
