@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 # Memory Dungeon
 
-A browser maze game (Next.js App Router, TypeScript, Tailwind) with a Supabase-backed
+A browser maze game (Next.js App Router, TypeScript, Tailwind) with a Neon-backed
 Postgres leaderboard. `components/Game.tsx` is the central state machine — most gameplay
 state lives there and flows down as props.
 
@@ -61,21 +61,28 @@ etc.) on every response via `headers()`. Adding any external script, font, image
 fetch target requires updating the matching `connect-src`/`script-src`/etc. directive
 too, or it will be silently blocked in production.
 
-## Database access — no supabase-js
+## Database access — Neon via plain Postgres
 
-The app never uses the Supabase JS client or its REST API. `lib/db.ts` opens a single
-reused connection via the `postgres` npm package straight to Postgres, authenticated as
-the `postgres` role (see `POSTGRES_URL`). Row Level Security is enabled on `scores` and
-`score_submission_attempts` with **no policies** — this is intentional: it blocks
-Supabase's auto-generated REST API from touching these tables, while the app's direct
-connection is unaffected because `postgres` owns the tables and RLS doesn't restrict an
-unforced table owner. If you ever see `FORCE ROW LEVEL SECURITY` mentioned or table
-ownership changes, re-verify `/api/scores` still works — that assumption is why it works.
+The database is Neon Postgres, provisioned through a Vercel Marketplace integration
+(resource name `memory-dungeon`, which is why its env vars carry a
+`MEMORY_DUNEGON_` prefix — a typo baked into the provisioned names, not ours to fix).
+The app never uses `@neondatabase/serverless` or any Neon-specific client — `lib/db.ts`
+opens a single reused TCP connection via the `postgres` npm package straight to
+Postgres, using the pooled connection string in `MEMORY_DUNEGON_POSTGRES_URL`. Neon has
+no auto-generated REST API, so (unlike the previous Supabase setup) there's no RLS
+workaround needed to protect these tables from an external API layer.
 
-`supabase/schema.sql` is the only source of truth for schema; there's no migrations
-folder. A Supabase MCP server may be available in this session — check the tool list;
-if so, prefer `execute_sql`/`apply_migration`/`get_advisors` over asking the user to
-paste SQL into the dashboard.
+The `MEMORY_DUNEGON_*` env vars are provisioned only for the Preview and Production
+Vercel environments, not Development, and several of them (including
+`MEMORY_DUNEGON_POSTGRES_URL`) are marked **Sensitive** in Vercel — once set, their
+real value can never be read back via `vercel env pull`, `vercel env ls`, or the
+dashboard, by anyone, including the project owner. For local development, the real
+value has to come from the Neon console or the Vercel dashboard's env var edit view and
+be pasted into `.env.local` by hand; it cannot be fetched via the CLI.
+
+`db/schema.sql` is the only source of truth for schema; there's no migrations folder.
+A Supabase MCP server may still be available in this session for the old project — it's
+only useful now for historical/export access to pre-migration data, not live app data.
 
 ## Leaderboard model
 
@@ -109,5 +116,6 @@ scores or hit the leaderboard — see the `isTestGame` gate in `Game.tsx`.
   (`package.json` patch version) and creates an extra commit on every push. It won't
   exist after a fresh clone — don't assume it's there, and don't manually bump the
   version yourself.
-- `.env.local` holds real Supabase service-role keys and DB passwords — never echo,
-  log, or commit its contents.
+- `.env.local` holds the real Neon DB password/connection strings (plus leftover,
+  unused Supabase keys from before the migration) — never echo, log, or commit its
+  contents.
